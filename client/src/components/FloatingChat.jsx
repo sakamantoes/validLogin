@@ -176,7 +176,7 @@ const FloatingChat = () => {
               repeat: Infinity,
               ease: "easeInOut",
             }}
-            className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 to-violet-600 blur-xl"
+            className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 blur-xl"
           />
         )}
 
@@ -195,18 +195,18 @@ const FloatingChat = () => {
             h-16
             rounded-full
             bg-gradient-to-br
-            from-purple-500
-            via-violet-600
+            from-blue-500
+            via-blue-600
             to-indigo-700
             shadow-2xl
-            shadow-purple-500/50
+            shadow-blue-500/50
             border
             border-white/20
             backdrop-blur-md
             group
             focus:outline-none
             focus-visible:ring-4
-            focus-visible:ring-purple-400/40
+            focus-visible:ring-blue-400/40
           "
           style={{ cursor: dragging ? "grabbing" : "grab" }}
         >
@@ -240,7 +240,7 @@ const FloatingChat = () => {
           {/* Customer Support Badge */}
           <div className="absolute -top-2 -right-2 bg-white rounded-full px-2 py-0.5 shadow-lg">
             <span
-              className="text-xs font-bold text-purple-600"
+              className="text-xs font-bold text-blue-600"
               style={FONT_MONO}
             >
               CS
@@ -291,7 +291,7 @@ const FloatingChat = () => {
                 rounded-3xl
                 overflow-hidden
                 border
-                border-purple-500/30
+                border-blue-500/30
                 bg-gradient-to-br
                 from-gray-900
                 to-black
@@ -299,10 +299,10 @@ const FloatingChat = () => {
               "
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-700 p-5 flex items-center gap-3">
+              <div className="bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-700 p-5 flex items-center gap-3">
                 <div className="relative">
                   <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg">
-                    <FaHeadset className="text-purple-600 text-2xl" />
+                    <FaHeadset className="text-blue-600 text-2xl" />
                   </div>
                   <span className="absolute bottom-1 right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
                 </div>
@@ -315,7 +315,7 @@ const FloatingChat = () => {
                     Customer Support
                   </h3>
                   <p
-                    className="text-purple-100 text-sm"
+                    className="text-blue-100 text-sm"
                     style={FONT_MONO}
                   >
                     Choose your preferred platform

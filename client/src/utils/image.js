@@ -1,5 +1,5 @@
-import logo from '../../public/LogoDigi.jpg';
-import logo2 from '../../public/LogoDigi.png';
+import logo from '../../public/ValidLogin.jpg';
+import logo2 from '../../public/ValidLogin.png';
 const imageObject = {
  Logo: logo,
  Logo2: logo2
