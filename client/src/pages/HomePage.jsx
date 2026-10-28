@@ -86,7 +86,7 @@ const RECENT = [
   { f: "🇰🇪", app: "Telegram", s: "delivered" }, { f: "🇮🇳", app: "WhatsApp", s: "delivered" },
 ];
 const AUD = {
-  Individuals: { pts: ["Pay per order, no subscription", "Private numbers, released after use", "Fund by transfer or card", "Automatic refund when a code fails"], big: "₦700", sub: "per number, from", cta: "Start as an individual" },
+  Individuals: { pts: ["Pay per order, no subscription", "Private numbers, released after use", "Fund by transfer or card", "Automatic refund when a code fails"], big: "₦1,700", sub: "per number, from", cta: "Start as an individual" },
   Business: { pts: ["Bulk pricing from 100 numbers", "Team seats with spend limits", "REST API and webhooks", "Dedicated account manager"], big: "Custom", sub: "volume pricing", cta: "Talk to sales" },
 };
 const STORIES = [
@@ -176,7 +176,7 @@ function Marquee({ children, reverse = false, speed = 40 }) {
 function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2.5 mt-[5px]">
-      <img src={imageObject.Logo} alt="ValidLogin" className="h-[90px] w-[100px]" />
+      <img src={imageObject.Logo} alt="ValidLogin" className="h-[90px] w-[90px] rounded-full" />
     </Link>
   );
 }
