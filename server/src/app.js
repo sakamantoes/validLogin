@@ -8,12 +8,13 @@ import otpRoutes from "./routes/otpRoutes.js";
 import notificationRoute from "./routes/notification.js";
 import userRoutes from "./routes/user.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
-import supportRoute from "./routes/supportRoutes.js";
+import platformLogsRoutes from "./routes/logs.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import CronJob from "../cron-job.js";
 import compression from "compression";
 import SMSPOOLCRON from "../smspool-cron.js";
+import { syncJustVerifyBoostAccounts } from "../justverified-cron.js";
 
 const app = express();
 
@@ -45,15 +46,33 @@ app.use("/api/otp", otpRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/notification", notificationRoute);
 app.use("/api/admin", adminRoutes);
-app.use("/api/support", supportRoute);
+app.use("/api/log", platformLogsRoutes);
+app.use("/api/logs", platformLogsRoutes);
 
-app.get("/cron-jobs", (req, res) => {
-  CronJob();
-  res.status(200).send("SMSBOWER Cron Job Ran");
+let isRunning = false;
+
+app.get("/cron-jobs", async (req, res) => {
+  try {
+    if (isRunning) {
+      return res
+        .status(200)
+        .send("Cron jobs are already running. Please wait for them to finish.");
+    }
+
+    isRunning = true;
+    await CronJob();
+    await SMSPOOLCRON();
+    await syncJustVerifyBoostAccounts();
+    res.status(200).send("SMSBOWER Cron Job Ran");
+  } catch (error) {
+    console.error("Error running cron jobs:", error);
+    res.status(500).send("Error running cron jobs");
+  } finally {
+    isRunning = false;
+  }
 });
 
 app.get("/smspool", (req, res) => {
-  SMSPOOLCRON();
   res.status(200).send("SMSPOOL Cron Job Ran");
 });
 

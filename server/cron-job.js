@@ -29,8 +29,8 @@ const CronJob = async () => {
         const response = await axios.get(
           `https://smsbower.page/stubs/handler_api.php?api_key=${env.sms_bower_api_key}&action=getPricesV3&service=${item.service}&country=${item.countryId}`,
           {
-            timeout: REQUEST_TIMEOUT_MS
-          }
+            timeout: REQUEST_TIMEOUT_MS,
+          },
         );
 
         for (const countryId in response.data) {
@@ -57,7 +57,7 @@ const CronJob = async () => {
                 continue;
               }
 
-               if ((Number(details.count) < 100) || !details.count) {
+              if (Number(details.count) < 100 || !details.count) {
                 continue;
               }
 
@@ -88,8 +88,13 @@ const CronJob = async () => {
         }
       }),
     );
-    console.log("saving data....");
-    await AvailableService.bulkWrite(arr);
+
+    let chunkSize = 500;
+
+    for (let index = 0; index < arr.length; index += chunkSize) {
+      const element = arr.slice(index, index + chunkSize);
+      await AvailableService.bulkWrite(element);
+    }
     console.log("data saved successfully");
 
     console.log(

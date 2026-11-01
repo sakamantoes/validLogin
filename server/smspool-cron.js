@@ -79,7 +79,7 @@ const SMSPOOLCRON = async () => {
     }
     let chunkSize = 500;
 
-    for (let index = 0; index < arr.length; chunkSize++) {
+    for (let index = 0; index < arr.length; index += chunkSize) {
       const element = arr.slice(index, index + chunkSize);
       await AvailableService.bulkWrite(element);
     }

@@ -27,6 +27,9 @@ import Setting from "./pages/user/Setting.jsx";
 import UserSupport from "./pages/user/UserSupport.jsx";
 import AdminSupport from "./pages/Admin/AdminSupport.jsx";
 import AdminStats from "./pages/Admin/AdminStats.jsx";
+import AdminLogs from "./pages/Admin/AdminLogs.jsx";
+import AccountStore from "./pages/user/AccountStore.jsx";
+import AccountOrders from "./pages/user/AccountOrders.jsx";
 import TermsAndConditions from "./pages/termsAndConditions.jsx";
 import PrivacyPolicy from "./pages/privacy.jsx";
 import FloatingChat from "./components/FloatingChat.jsx";
@@ -65,6 +68,8 @@ const App = () => {
 
           <Route path="fund-account" element={<FundAccount />} />
           <Route path="numbers" element={<PhoneNumber />} />
+          <Route path="account-store" element={<AccountStore />} />
+          <Route path="account-orders" element={<AccountOrders />} />
           <Route path="otp-box" element={<OtpBox />} />
           <Route path="deposits" element={<UserDeposits />} />
           <Route path="receipts" element={<UserReceipts />} />
@@ -87,6 +92,7 @@ const App = () => {
           <Route path="deposits" element={<Transactions />} />
           <Route path="manual-account" element={<ManualAccount />} />
           <Route path="numbers" element={<AdminNumbers />} />
+          <Route path="logs" element={<AdminLogs />} />
           <Route path="otp-orders" element={<AdminOtpOrders />} />
           <Route path="support" element={<AdminSupport />} />
         </Route>

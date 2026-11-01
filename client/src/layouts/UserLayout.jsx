@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   CreditCard,
+  ClipboardList,
   Gauge,
   Inbox,
   Menu,
+  Package,
   Phone,
   ReceiptText,
   Settings,
@@ -23,6 +25,8 @@ const FONT_DISPLAY = {
 const userNavItems = [
   { label: "Dashboard", to: "/f/dashboard", icon: Gauge },
   { label: "Numbers and Services", to: "/f/numbers", icon: Phone },
+  { label: "Account Store", to: "/f/account-store", icon: Package },
+  { label: "Account Orders", to: "/f/account-orders", icon: ClipboardList },
   { label: "OTP Inbox", to: "/f/otp-box", icon: Inbox },
   { label: "Deposits History", to: "/f/deposits", icon: CreditCard },
   { label: "View Receipts", to: "/f/receipts", icon: ReceiptText },
@@ -33,6 +37,8 @@ const userPageTitles = {
   dashboard: "Dashboard",
   "fund-account": "Fund Account",
   numbers: "Buy Number",
+  "account-store": "Account Store",
+  "account-orders": "Account Orders",
   "otp-box": "OTP Inbox",
   deposits: "Deposits History",
   receipts: "View Receipts",
