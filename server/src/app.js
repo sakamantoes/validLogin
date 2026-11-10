@@ -36,7 +36,7 @@ app.use(
 app.use(cookieParser());
 
 app.get("/", (req, res) => {
-  res.send("Welcome to wave verify API");
+  res.send("Welcome to validlogin API");
 });
 
 // routes
