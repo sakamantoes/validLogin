@@ -34,7 +34,7 @@ const initialiseDeposit = async (req, res, next) => {
       amount: Number(amount * 100),
       currency: "NGN",
       initiate_type: "inline",
-      callback_url: "https://www.smswinners.online/payment/status",
+      callback_url: "https://www.validlogin.online/payment/status",
     };
 
     const squad = await axios.post(
