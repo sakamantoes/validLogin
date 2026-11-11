@@ -335,7 +335,7 @@ const FloatingChat = () => {
               {/* Content */}
               <div className="p-6">
                 <p className="text-gray-300 text-center leading-relaxed mb-4">
-                  👋 Welcome to Wave Verify Support!
+                  👋 Welcome to Valid Login Support!
                   <br />
                   How would you like to connect with us? Click the button below 👇
                 </p>
