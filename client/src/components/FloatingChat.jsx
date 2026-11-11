@@ -6,7 +6,7 @@ import {
   useMotionValue,
   useSpring,
 } from "framer-motion";
-import { FaTelegramPlane, FaHeadset } from "react-icons/fa";
+import { FaTelegramPlane, FaHeadset, FaWhatsapp } from "react-icons/fa";
 
 const FONT_DISPLAY = {
   fontFamily: "'Space Grotesk', ui-sans-serif, system-ui",
@@ -73,8 +73,21 @@ const FloatingChat = () => {
   const telegramUsername = "test"; // Replace with your Telegram username later
   const telegramUrl = `https://t.me/${telegramUsername}`;
 
+  // WhatsApp Configuration
+  // Local number: 09134564469 -> International format: 2349134564469
+  const whatsappNumber = "2349134564469";
+  const whatsappMessage = encodeURIComponent(
+    "Hello! I need help with Valid Login Support."
+  );
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
+
   const handleTelegram = () => {
     window.open(telegramUrl, "_blank");
+    setIsOpen(false);
+  };
+
+  const handleWhatsApp = () => {
+    window.open(whatsappUrl, "_blank");
     setIsOpen(false);
   };
 
@@ -286,8 +299,10 @@ const FloatingChat = () => {
                 z-50
                 w-[90vw]
                 max-w-md
-                sm:h-[490px]
+                sm:h-auto
                 h-auto
+                max-h-[85vh]
+                overflow-y-auto
                 rounded-3xl
                 overflow-hidden
                 border
@@ -337,11 +352,56 @@ const FloatingChat = () => {
                 <p className="text-gray-300 text-center leading-relaxed mb-4">
                   👋 Welcome to Valid Login Support!
                   <br />
-                  How would you like to connect with us? Click the button below 👇
+                  How would you like to connect with us? Click a button below 👇
                 </p>
 
-                {/* Telegram Option */}
+                {/* Contact Options */}
                 <div className="space-y-4">
+                  {/* WhatsApp Option */}
+                  <motion.button
+                    onClick={handleWhatsApp}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="
+                      w-full
+                      p-4
+                      rounded-xl
+                      flex
+                      items-center
+                      gap-4
+                      bg-gradient-to-r
+                      from-green-500/10
+                      to-emerald-500/10
+                      border
+                      border-green-500/30
+                      hover:border-green-500
+                      transition-all
+                      group
+                    "
+                  >
+                    <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <FaWhatsapp className="text-green-500 text-2xl" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <h4
+                        className="text-white font-semibold"
+                        style={FONT_DISPLAY}
+                      >
+                        WhatsApp
+                      </h4>
+                      <p
+                        className="text-gray-400 text-sm"
+                        style={FONT_MONO}
+                      >
+                        0913 456 4469
+                      </p>
+                    </div>
+                    <span className="text-green-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                      →
+                    </span>
+                  </motion.button>
+
+                  {/* Telegram Option
                   <motion.button
                     onClick={handleTelegram}
                     whileHover={{ scale: 1.02 }}
@@ -383,7 +443,7 @@ const FloatingChat = () => {
                     <span className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
                       →
                     </span>
-                  </motion.button>
+                  </motion.button> */}
                 </div>
 
                 {/* Features */}
