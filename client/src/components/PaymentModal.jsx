@@ -9,12 +9,12 @@ import {
 import { useState } from "react";
 
 const paymentOptions = [
-  {
-    id: "quest",
-    title: "Pay with QUEST",
-    description: "Use QUESTPay to fund your wallet instantly.",
-    icon: CreditCard,
-  },
+  // {
+  //   id: "quest",
+  //   title: "Pay with QUEST",
+  //   description: "Use QUESTPay to fund your wallet instantly.",
+  //   icon: CreditCard,
+  // },
   {
     id: "manual-transfer",
     title: "Manual Transfer",
