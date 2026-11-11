@@ -15,7 +15,7 @@ export default function SiteLogo({ href = "/", className = "" }) {
         style={FONT_DISPLAY}
         className="text-[17px] font-semibold tracking-tight text-heading"
       >
-        DigiTools
+        ValidLogin
       </span>
     </>
   );
