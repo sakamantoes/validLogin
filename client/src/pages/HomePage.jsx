@@ -176,7 +176,7 @@ function Marquee({ children, reverse = false, speed = 40 }) {
 function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2.5 mt-[5px]">
-      <img src={imageObject.Logo} alt="ValidLogin" className="h-[90px] w-[90px] rounded-full" />
+      <img src={imageObject.Logo} alt="ValidLogin" className="h-[80px] w-[80px] rounded-full" />
     </Link>
   );
 }
