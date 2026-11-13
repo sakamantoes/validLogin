@@ -53,6 +53,19 @@ const validCtexSignature = (rawBody, header, secret) => {
 const CTEX_API = () =>
   env.ctex_base_url || "https://api.ctex.online/api/v1";
 
+// Where ctex sends the user after checkout. Same page Squad/Quest use.
+// The name of the request field that carries it is set by
+// env.ctex_redirect_field (check ctex's "create payment" doc; default below).
+const CTEX_REDIRECT_FIELD = () => env.ctex_redirect_field || "redirectUrl";
+
+const buildCtexReturnUrl = (reference) => {
+  const base =
+    env.ctex_return_url || "https://www.validlogin.online/payment/status";
+  const url = new URL(base);
+  url.searchParams.set("referenceId", reference);
+  return url.toString();
+};
+
 /* =========================================================
  * SQUAD — existing
  * ======================================================= */
@@ -131,10 +144,24 @@ const callbackUrlHandler = async (req, res, next) => {
 };
 
 const getPaymentStatus = async (req, res, next) => {
-  const { referenceId } = req.body;
+  const referenceId = String(req.body?.referenceId || "").trim();
 
   try {
-    const transaction = await WalletTransaction.findOne({ referenceId });
+    if (!referenceId) {
+      res.statusCode = 400;
+      throw new Error("referenceId is required");
+    }
+
+    // Squad/Quest/Manual use referenceId directly. ctex redirects carry our
+    // own merchant reference (known before the payment is created), so also
+    // match on that.
+    const transaction = await WalletTransaction.findOne({
+      $or: [
+        { referenceId },
+        { "metadata.merchantReference": referenceId },
+        { "metadata.ctexReference": referenceId },
+      ],
+    });
 
     if (!transaction) {
       res.statusCode = 404;
@@ -538,6 +565,7 @@ const initializeCtexPayment = async (req, res, next) => {
       customerId,
       reference: idempotencyKey,
       description: `Wallet topup for ${user.email}`,
+      [CTEX_REDIRECT_FIELD()]: buildCtexReturnUrl(idempotencyKey),
       // paymentMethod deliberately not set — hosted checkout
       // If hosted checkout fails, try adding: paymentMethod: "ACCOUNT_TRANSFER"
     };
@@ -578,7 +606,7 @@ const initializeCtexPayment = async (req, res, next) => {
       status: "PENDING",
       metadata: {
         ctexReference: payment.paymentReference,
-        merchantReference: payment.merchantReference,
+        merchantReference: payment.merchantReference || idempotencyKey,
         amountKobo: Number(payment.amount),
         checkoutUrl,
       },

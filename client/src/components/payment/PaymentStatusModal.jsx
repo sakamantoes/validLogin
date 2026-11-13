@@ -1,7 +1,10 @@
 import { CheckCircle2, Clock3, X, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getSquadPaymentStatus } from "../../service/payment";
+
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLLS = 20; // ~60s of waiting for the webhook to land
 
 const statusContent = {
   success: {
@@ -36,12 +39,18 @@ export default function PaymentStatusModal() {
   const [transactionStatus, setTransactionStatus] = useState("pending");
   const [isLoading, setIsLoading] = useState(true);
   const [statusError, setStatusError] = useState("");
+  const pollCount = useRef(0);
+
+  // Squad, Quest and ctex all land here with a different param name.
   const reference =
     searchParams.get("referenceId") ||
     searchParams.get("transaction_reference") ||
     searchParams.get("transaction_ref") ||
     searchParams.get("reference") ||
-    searchParams.get("tx_ref");
+    searchParams.get("tx_ref") ||
+    searchParams.get("paymentReference") ||
+    searchParams.get("payment_reference") ||
+    searchParams.get("merchantReference");
 
   const content = statusContent[transactionStatus] || {
     title: "Payment Status Unavailable",
@@ -56,6 +65,10 @@ export default function PaymentStatusModal() {
   const Icon = content.icon;
 
   useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+    pollCount.current = 0;
+
     const fetchPaymentStatus = async () => {
       if (!reference) {
         setTransactionStatus("unavailable");
@@ -65,25 +78,43 @@ export default function PaymentStatusModal() {
       }
 
       try {
-        setIsLoading(true);
         const response = await getSquadPaymentStatus({
           referenceId: reference,
         });
+        if (cancelled) return;
 
-        setTransactionStatus(String(response.data.status).toLowerCase());
+        const status = String(response?.data?.status || "").toLowerCase();
         setStatusError("");
+
+        if (status === "pending" && pollCount.current < MAX_POLLS) {
+          // Redirect often beats the webhook; keep checking for a while.
+          pollCount.current += 1;
+          setTransactionStatus("pending");
+          timer = setTimeout(fetchPaymentStatus, POLL_INTERVAL_MS);
+          return;
+        }
+
+        setTransactionStatus(statusContent[status] ? status : "pending");
+        setIsLoading(false);
       } catch (error) {
+        if (cancelled) return;
         setTransactionStatus("unavailable");
         setStatusError(
-          error.data.message ||
+          error?.data?.message ||
+            error?.response?.data?.message ||
             "We could not verify this payment status. Please try again.",
         );
-      } finally {
         setIsLoading(false);
       }
     };
 
+    setIsLoading(true);
     fetchPaymentStatus();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [reference]);
 
   const handleClose = () => {
