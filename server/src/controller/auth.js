@@ -8,7 +8,6 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import { sendMail } from "../services/resend.js";
 
-
 /* =========================================================
  * HELPERS
  * ======================================================= */
@@ -60,7 +59,7 @@ const googleSetup = async (req, res, next) => {
 
     // Create user if doesn't exist
     if (!user) {
-      user = await createUserWithPhone({
+      user = await User.create({
         email,
         username: name,
         password: hashedpassword,
@@ -109,7 +108,7 @@ const googleVerified = async (req, res, next) => {
 
     if (!user) {
       const hashedPassword = await hashPassword(googleId); // use googleId as placeholder password
-      user = await createUserWithPhone({
+      user = await User.create({
         email,
         username: name,
         password: hashedPassword,
@@ -210,7 +209,7 @@ const emailSignup = async (req, res, next) => {
     const hashedPassword = await hashPassword(password);
 
     // Create user with the phone number the user provided
-    const user = await createUserWithPhone({
+    const user = await User.create({
       email: email.toLowerCase(),
       username,
       password: hashedPassword,
