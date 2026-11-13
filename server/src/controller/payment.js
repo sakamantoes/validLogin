@@ -9,6 +9,7 @@ import {
   sendDepositFailedNotification,
   sendPaymentReceivedNotification,
 } from "./notificationController.js";
+import { ensureCtexCustomer } from "./ctexCustomerController.js";
 
 /* =========================================================
  * HELPERS
@@ -516,17 +517,8 @@ const initializeCtexPayment = async (req, res, next) => {
       .toString("hex")
       .toUpperCase()}`;
 
-    // ⚠️ REQUIRED: ctex needs a customerId that you must obtain from
-    // their platform (or create via their customer API if one exists).
-    // Replace `user.ctexCustomerId` with however you store it.
-    const customerId = user.ctexCustomerId || user._id.toString();
-
-    if (!customerId) {
-      res.statusCode = 400;
-      throw new Error(
-        "C-TEX customerId is required. Please contact support to set up your C-TEX customer profile.",
-      );
-    }
+    // Lazily create (or reuse) the C-TEX customer and get their UUID.
+    const customerId = await ensureCtexCustomer(user);
 
     const payload = {
       amount: amountKobo,
@@ -608,10 +600,10 @@ const initializeCtexPayment = async (req, res, next) => {
     } else {
       console.log("ctex init error:", error.message);
     }
+    if (error.statusCode && !res.statusCode) res.statusCode = error.statusCode;
     next(error);
   }
 };
-
 /* =========================================================
  * ctex PAY webhook — unchanged from account-transfer flow
  * =======================================================

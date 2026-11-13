@@ -16,6 +16,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    ctexCustomerId: {
+  type: String,
+  default: null,
+},
     role: {
       type: String,
       required: true,
