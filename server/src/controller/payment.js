@@ -53,19 +53,6 @@ const validCtexSignature = (rawBody, header, secret) => {
 const CTEX_API = () =>
   env.ctex_base_url || "https://api.ctex.online/api/v1";
 
-// Where ctex sends the user after checkout. Same page Squad/Quest use.
-// The name of the request field that carries it is set by
-// env.ctex_redirect_field (check ctex's "create payment" doc; default below).
-const CTEX_REDIRECT_FIELD = () => env.ctex_redirect_field || "redirectUrl";
-
-const buildCtexReturnUrl = (reference) => {
-  const base =
-    env.ctex_return_url || "https://www.validlogin.online/payment/status";
-  const url = new URL(base);
-  url.searchParams.set("referenceId", reference);
-  return url.toString();
-};
-
 /* =========================================================
  * SQUAD — existing
  * ======================================================= */
@@ -529,6 +516,10 @@ const questWebhook = async (req, res, next) => {
  * We use hosted checkout so the user is redirected to a ctex page
  * that handles transfer/card/USSD, then returns to our callback URL.
  * The webhook payload is identical either way.
+ *
+ * NOTE: the return / redirect URL is configured in the C-TEX
+ * dashboard. It must NOT be sent in the create-payment payload —
+ * C-TEX rejects unknown fields with "Validation failed".
  * ======================================================= */
 
 const initializeCtexPayment = async (req, res, next) => {
@@ -565,9 +556,9 @@ const initializeCtexPayment = async (req, res, next) => {
       customerId,
       reference: idempotencyKey,
       description: `Wallet topup for ${user.email}`,
-      [CTEX_REDIRECT_FIELD()]: buildCtexReturnUrl(idempotencyKey),
       // paymentMethod deliberately not set — hosted checkout
       // If hosted checkout fails, try adding: paymentMethod: "ACCOUNT_TRANSFER"
+      // redirectUrl / callbackUrl are configured in the C-TEX dashboard.
     };
 
     const response = await axios.post(`${CTEX_API()}/payments`, payload, {
