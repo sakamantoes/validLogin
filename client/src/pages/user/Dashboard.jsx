@@ -1,17 +1,19 @@
 import {
   AlertCircle,
+  ArrowUpRight,
   Bell,
   ChevronRight,
   CreditCard,
   Inbox,
-  Loader2,
   MessageSquareText,
   Phone,
+  Plus,
   ReceiptText,
   Settings,
   ShieldCheck,
   Smartphone,
 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import EmptyState from "../../components/ui/EmptyState.jsx";
@@ -19,6 +21,7 @@ import StatCard from "../../components/ui/StatCard.jsx";
 import WalletBalanceCard from "../../components/WalletBalanceCard.jsx";
 import { GetAllNotifications } from "../../service/notificationApi.js";
 import { getMyOrders } from "../../service/number.js";
+import useAuth from "../../store/useAuth";
 
 const FONT_DISPLAY = {
   fontFamily: "'Space Grotesk', ui-sans-serif, system-ui",
@@ -73,8 +76,42 @@ const quickActions = [
   { label: "Settings", icon: Settings, to: "/f/settings" },
 ];
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+};
+
+/* Reusable card header */
+function SectionHeader({ icon: Icon, title, subtitle }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
+        <Icon size={17} />
+      </div>
+      <div className="min-w-0">
+        <h2
+          style={FONT_DISPLAY}
+          className="text-sm font-semibold leading-tight text-heading sm:text-[15px]"
+        >
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-0.5 text-xs leading-tight text-muted">{subtitle}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
+  const { user } = useAuth();
+  const profile = user?.data || user || {};
+  const firstName = (profile.username || profile.name || "").split(" ")[0];
+
   const [recentNotifications, setRecentNotifications] = useState([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [notificationError, setNotificationError] = useState("");
@@ -169,69 +206,160 @@ export default function Dashboard() {
     return stat;
   });
 
+  /* Gentle staggered entrance */
+  const fadeUp = (i = 0) =>
+    reduceMotion
+      ? {}
+      : {
+          initial: { opacity: 0, y: 12 },
+          animate: { opacity: 1, y: 0 },
+          transition: {
+            duration: 0.5,
+            delay: i * 0.07,
+            ease: [0.22, 1, 0.36, 1],
+          },
+        };
+
   return (
     <div className="mx-auto max-w-7xl px-3 py-6 sm:px-4 md:px-6">
-      {/* New layout: two-column on large screens, single column on mobile */}
+      {/* ── Page header ─────────────────────────────────────── */}
+      <motion.header
+        {...fadeUp(0)}
+        className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+      >
+        <div className="min-w-0">
+          <p
+            style={FONT_MONO}
+            className="text-[10.5px] uppercase tracking-[0.18em] text-muted"
+          >
+            {new Date().toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+          <h1
+            style={FONT_DISPLAY}
+            className="mt-1.5 truncate text-2xl font-semibold tracking-tight text-heading sm:text-3xl"
+          >
+            {getGreeting()}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Here's what's happening with your numbers today.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            navigate("/f/fund-account", { state: { from: "/f/dashboard" } })
+          }
+          style={FONT_DISPLAY}
+          className="group inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-[13.5px] font-medium text-on-brand shadow-sm transition-all duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        >
+          <Plus size={16} />
+          Fund Account
+        </button>
+      </motion.header>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* ── Main content column ─────────────────────────────── */}
         <div className="space-y-5 lg:col-span-2">
-          {/* Stats row – Wallet + Active Orders + OTP Received */}
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {/* Stats row */}
+          <motion.section
+            {...fadeUp(1)}
+            className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
             <WalletBalanceCard />
             {updatedStats.map((stat) => (
               <StatCard key={stat.label} {...stat} />
             ))}
-          </section>
+          </motion.section>
 
-          {/* Available Services – moved to main column */}
-          <section className="rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-5">
-            <h2 className="text-sm font-semibold text-heading sm:text-base">
-              Available Services
-            </h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {/* Available Services */}
+          <motion.section
+            {...fadeUp(2)}
+            className="rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-6"
+          >
+            <SectionHeader
+              icon={ShieldCheck}
+              title="Available Services"
+              subtitle="Everything you need for verification"
+            />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {serviceCards.map((service) => (
                 <button
                   key={service.title}
                   type="button"
                   onClick={() => navigate(service.to)}
-                  className="group flex w-full items-start gap-3 rounded-xl border border-border bg-bg-subtle p-4 text-left transition-colors hover:border-border-strong hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  className="group relative flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-bg-subtle p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:bg-brand-soft hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
-                    <service.icon size={20} />
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface text-brand-text ring-1 ring-border transition-colors duration-200 group-hover:bg-brand group-hover:text-on-brand group-hover:ring-transparent">
+                      <service.icon size={20} />
+                    </div>
+                    <ArrowUpRight
+                      size={18}
+                      className="text-muted transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand"
+                    />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-heading">
-                      {service.title}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-muted">
-                      {service.description}
-                    </p>
-                    <p className="mt-2 text-[11px] font-semibold uppercase tracking-widest text-muted">
+
+                  <p
+                    style={FONT_DISPLAY}
+                    className="mt-5 text-[15px] font-semibold text-heading"
+                  >
+                    {service.title}
+                  </p>
+                  <p className="mt-1.5 text-xs leading-5 text-muted">
+                    {service.description}
+                  </p>
+
+                  <div className="mt-4 flex items-center gap-2 border-t border-border pt-3">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                    <p
+                      style={FONT_MONO}
+                      className="truncate text-[10.5px] uppercase tracking-wider text-muted"
+                    >
                       {service.meta}
                     </p>
                   </div>
-                  <ChevronRight
-                    size={16}
-                    className="mt-0.5 shrink-0 text-muted transition-colors group-hover:text-brand"
-                  />
                 </button>
               ))}
             </div>
-          </section>
+          </motion.section>
 
-          {/* Recent Deposit – full width inside main column */}
-          <section className="rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-5">
-            <h2 className="text-sm font-semibold text-heading">
-              Recent Deposit
-            </h2>
-            <div className="mt-4 space-y-2">
+          {/* Recent Deposit */}
+          <motion.section
+            {...fadeUp(3)}
+            className="rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-6"
+          >
+            <SectionHeader
+              icon={Bell}
+              title="Recent Deposit"
+              subtitle="Your latest account activity"
+            />
+
+            <div className="mt-5 space-y-2">
               {loadingNotifications ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 size={22} className="animate-spin text-brand" />
+                <div className="space-y-2" aria-busy="true">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="flex animate-pulse items-center gap-3 rounded-xl border border-border bg-bg-subtle px-3 py-3"
+                    >
+                      <div className="h-9 w-9 shrink-0 rounded-xl bg-border" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 w-1/3 rounded-full bg-border" />
+                        <div className="h-2.5 w-2/3 rounded-full bg-border" />
+                      </div>
+                      <div className="hidden h-2.5 w-16 rounded-full bg-border sm:block" />
+                    </div>
+                  ))}
                 </div>
               ) : notificationError ? (
-                <div className="flex items-center gap-2 rounded-xl border border-border bg-bg-subtle px-3 py-4 text-xs text-body sm:text-sm">
-                  <AlertCircle size={14} className="shrink-0" />
+                <div className="flex items-center gap-2.5 rounded-xl border border-border bg-bg-subtle px-4 py-4 text-xs text-body sm:text-sm">
+                  <AlertCircle size={15} className="shrink-0 text-muted" />
                   <span>{notificationError}</span>
                 </div>
               ) : recentNotifications.length === 0 ? (
@@ -250,56 +378,73 @@ export default function Dashboard() {
                 recentNotifications.map((notification) => (
                   <div
                     key={notification._id}
-                    className="flex flex-col gap-2 rounded-xl border border-border bg-bg-subtle px-3 py-3 transition-colors hover:bg-brand-soft sm:flex-row sm:items-center sm:gap-4"
+                    className="group flex flex-col gap-2 rounded-xl border border-border bg-bg-subtle px-3.5 py-3 transition-all duration-200 hover:border-border-strong hover:bg-brand-soft sm:flex-row sm:items-center sm:gap-4"
                   >
-                    <div className="flex min-w-0 items-start gap-3 sm:flex-1">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
-                        <Bell size={14} />
+                    <div className="flex min-w-0 items-start gap-3 sm:flex-1 sm:items-center">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface text-brand-text ring-1 ring-border transition-colors duration-200 group-hover:ring-transparent">
+                        <Bell size={15} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-heading sm:text-sm">
+                        <p
+                          style={FONT_DISPLAY}
+                          className="truncate text-xs font-semibold text-heading sm:text-[13px]"
+                        >
                           {notification.title || "Notification"}
                         </p>
-                        <p className="line-clamp-2 text-xs text-muted">
+                        <p className="mt-0.5 line-clamp-2 text-xs text-muted">
                           {notification.message || "No message"}
                         </p>
                       </div>
                     </div>
-                    <p className="pl-11 text-[10px] font-medium text-muted sm:shrink-0 sm:pl-0 sm:text-xs">
+                    <p
+                      style={FONT_MONO}
+                      className="pl-12 text-[10px] uppercase tracking-wider text-muted sm:shrink-0 sm:pl-0"
+                    >
                       {formatNotificationDate(notification.createdAt)}
                     </p>
                   </div>
                 ))
               )}
             </div>
-          </section>
+          </motion.section>
         </div>
 
         {/* ── Sidebar column – Quick Actions ──────────────────── */}
         <aside className="lg:col-span-1">
-          <div className="sticky top-6 space-y-5">
-            {/* Quick Actions card */}
-            <div className="rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-5">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted sm:text-sm">
-                Quick Actions
-              </h2>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {quickActions.map(({ label, icon: Icon, to }) => (
+          <motion.div {...fadeUp(2)} className="sticky top-6 space-y-5">
+            <div className="rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-6">
+              <SectionHeader
+                icon={ChevronRight}
+                title="Quick Actions"
+                subtitle="Jump straight to what matters"
+              />
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {quickActions.map(({ label, icon: Icon, to }, index) => (
                   <button
                     key={label}
                     type="button"
                     onClick={() => navigate(to)}
-                    className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-bg-subtle px-2 py-5 text-center transition-colors hover:border-border-strong hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand active:bg-brand-soft"
+                    className={`group flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-bg-subtle px-2 py-5 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:bg-brand-soft hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand active:translate-y-0 ${
+                      index === quickActions.length - 1 &&
+                      quickActions.length % 2 === 1
+                        ? "col-span-2"
+                        : ""
+                    }`}
                   >
-                    <Icon size={18} className="text-brand-text" />
-                    <span className="text-xs font-semibold leading-tight text-body">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-brand-text ring-1 ring-border transition-colors duration-200 group-hover:bg-brand group-hover:text-on-brand group-hover:ring-transparent">
+                      <Icon size={18} />
+                    </span>
+                    <span
+                      style={FONT_DISPLAY}
+                      className="text-xs font-medium leading-tight text-body group-hover:text-heading"
+                    >
                       {label}
                     </span>
                   </button>
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
         </aside>
       </div>
     </div>

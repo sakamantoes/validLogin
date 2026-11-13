@@ -27,8 +27,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://dera-verify.vercel.app",
-      "https://www.waveverify.com",
+      "https://valid-login-5k2c.vercel.app",
+      "https://www.validlogin.online",
     ],
     credentials: true,
   }),
@@ -36,7 +36,7 @@ app.use(
 app.use(cookieParser());
 
 app.get("/", (req, res) => {
-  res.send("Welcome to wave verify API");
+  res.send("Welcome to validlogin API");
 });
 
 // routes

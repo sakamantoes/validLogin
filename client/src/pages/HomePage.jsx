@@ -176,8 +176,12 @@ function Marquee({ children, reverse = false, speed = 40 }) {
 
 function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5 mt-[5px]">
-      <img src={imageObject.Logo} alt="ValidLogin" className="h-[90px] w-[90px] rounded-full" />
+    <Link to="/" className="flex shrink-0 items-center" aria-label="ValidLogin home">
+      <img
+        src={imageObject.Logo}
+        alt="ValidLogin"
+        className="h-11 w-11 rounded-full object-cover sm:h-12 sm:w-14 md:h-16 md:w-16"
+      />
     </Link>
   );
 }

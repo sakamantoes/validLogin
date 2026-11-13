@@ -27,14 +27,14 @@ export default function FundAccount() {
 
 
 
-  if (paymentMethod === "quest") {
-    return (
-      <AlatPayment
-        amount={amount}
-        onBack={handleBackToMethods}
-      />
-    );
-  }
+  // if (paymentMethod === "quest") {
+  //   return (
+  //     <AlatPayment
+  //       amount={amount}
+  //       onBack={handleBackToMethods}
+  //     />
+  //   );
+  // }
 
   if (paymentMethod === "squad") {
     return (
