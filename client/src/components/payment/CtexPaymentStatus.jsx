@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCtexPaymentStatus } from "../../services/payment.js";
+import { getCtexPaymentStatus } from "../../service/payment.js";
 import CtexPaymentShell from "./CtexPaymentShell.jsx";
 import { clearPendingCtex } from "./ctexStorage.js";
 
