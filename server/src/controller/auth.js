@@ -7,8 +7,7 @@ import { env } from "../config/constant.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import { sendMail } from "../services/resend.js";
-import { generateUniqueNigerianPhone } from "../utils/nigerianPhone.js";
-import { createUserWithPhone } from "../utils/createUserWithPhone.js";
+
 
 /* =========================================================
  * HELPERS
