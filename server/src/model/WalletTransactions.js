@@ -5,7 +5,7 @@ const walletTransactionSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      require: true,
+      required: true,          // ← fixed (was `require`)
       index: true,
     },
     depositorName: {
@@ -35,7 +35,21 @@ const walletTransactionSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["QUEST", "SQUAD", "MANUAL_TRANSFER","ADMIN_REFUND"],
+      enum: [
+        "QUEST",
+        "SQUAD",
+        "MANUAL_TRANSFER",
+        "ADMIN_REFUND",
+        "CTEX",                // ← added for C-TEX PAY
+      ],
+    },
+
+    // Provider-specific metadata (C-TEX reference, merchant reference,
+    // raw amount in kobo, etc.). Kept as a plain object so each provider
+    // can store what it needs without schema changes.
+    metadata: {
+      type: Object,
+      default: {},
     },
 
     balanceBefore: Number,
@@ -43,12 +57,12 @@ const walletTransactionSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 const WalletTransaction = mongoose.model(
   "walletTransaction",
-  walletTransactionSchema,
+  walletTransactionSchema
 );
 
 export default WalletTransaction;

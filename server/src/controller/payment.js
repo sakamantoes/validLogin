@@ -10,6 +10,10 @@ import {
   sendPaymentReceivedNotification,
 } from "./notificationController.js";
 
+/* =========================================================
+ * HELPERS
+ * ======================================================= */
+
 const normalizeSquadStatus = (status) => {
   const normalizedStatus = String(status || "").toLowerCase();
 
@@ -23,6 +27,17 @@ const normalizeSquadStatus = (status) => {
 
   return "PENDING";
 };
+
+const normalizeCtexStatus = (status) => {
+  const s = String(status || "").toUpperCase();
+  if (s === "SUCCESS") return "SUCCESS";
+  if (s === "FAILED" || s === "EXPIRED" || s === "CANCELLED") return "FAILED";
+  return "PENDING";
+};
+
+/* =========================================================
+ * SQUAD — existing
+ * ======================================================= */
 
 const initialiseDeposit = async (req, res, next) => {
   const { amount } = req.body;
@@ -80,9 +95,7 @@ const callbackUrlHandler = async (req, res, next) => {
   const { referenceId } = req.body;
 
   try {
-    const transaction = await WalletTransaction.findOne({
-      referenceId,
-    });
+    const transaction = await WalletTransaction.findOne({ referenceId });
 
     if (!transaction) {
       res.statusCode = 404;
@@ -193,7 +206,6 @@ const webhookHandler = async (req, res, next) => {
         transaction.status = gatewayStatus;
         await transaction.save({ session });
 
-        // Send failure notification
         await sendDepositFailedNotification(
           transaction.userId,
           transaction.amount,
@@ -229,11 +241,7 @@ const webhookHandler = async (req, res, next) => {
           $setOnInsert: { _id: transaction.userId },
           $inc: { walletBalance: amountToCredit },
         },
-        {
-          new: true,
-          upsert: true,
-          session,
-        },
+        { new: true, upsert: true, session },
       );
 
       transaction.status = "SUCCESS";
@@ -243,7 +251,6 @@ const webhookHandler = async (req, res, next) => {
 
       await transaction.save({ session });
 
-      // Send success notification
       await sendDepositSuccessNotification(
         transaction.userId,
         amountToCredit,
@@ -260,14 +267,17 @@ const webhookHandler = async (req, res, next) => {
       };
     });
   } catch (error) {
-    console.log("quest webhook: ", error.message);
+    console.log("squad webhook: ", error.message);
     next(error);
   } finally {
     await session.endSession();
   }
 };
 
-// manual payment
+/* =========================================================
+ * MANUAL — existing
+ * ======================================================= */
+
 const initializeManualPayment = async (req, res, next) => {
   const { amount, transactionId, depositorName } = req.body;
   const user = req.user;
@@ -281,7 +291,6 @@ const initializeManualPayment = async (req, res, next) => {
       depositorName,
     });
 
-    // Send notification for manual payment received
     await sendPaymentReceivedNotification(
       user._id,
       Number(amount),
@@ -313,7 +322,10 @@ const initializeManualPayment = async (req, res, next) => {
   }
 };
 
-// quest payment
+/* =========================================================
+ * QUEST — existing
+ * ======================================================= */
+
 const initializeQuestPayment = async (req, res, next) => {
   const { amount } = req.body;
   const user = req.user;
@@ -367,7 +379,7 @@ const initializeQuestPayment = async (req, res, next) => {
     next(error);
   }
 };
-// quest webhook
+
 const questWebhook = async (req, res, next) => {
   const signature = req.headers["x-questpay-signature"];
   const payload = JSON.stringify(req.body);
@@ -463,6 +475,279 @@ const questWebhook = async (req, res, next) => {
   }
 };
 
+/* =========================================================
+ * C-TEX PAY — checkout URL flow
+ * =======================================================
+ * Unlike Squad/Quest, C-TEX requires us to be explicit about which
+ * checkout surface to open:
+ *
+ *   paymentMethod: "ACCOUNT_TRANSFER"  → bank-transfer-only flow
+ *                                        (returns paymentInstructions)
+ *   paymentMethod: OMITTED             → hosted checkout flow
+ *                                        (returns checkoutUrl)
+ *
+ * We want the hosted checkout here so the user is redirected to a
+ * C-TEX page that handles transfer/card/USSD, then returns to our
+ * callback URL. The webhook payload is identical either way.
+ * ======================================================= */
+
+const initializeCtexPayment = async (req, res, next) => {
+  const { amount } = req.body;
+  const user = req.user;
+
+  try {
+    if (!env.ctex_api_key) {
+      res.statusCode = 503;
+      throw new Error("C-TEX PAY is not configured");
+    }
+
+    if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+      res.statusCode = 400;
+      throw new Error("A valid amount is required");
+    }
+
+    // Convert naira to kobo for C-TEX
+    const amountKobo = Math.round(Number(amount) * 100);
+
+    // Unique idempotency key per deposit attempt
+    const idempotencyKey = `ctex-${user._id}-${crypto
+      .randomBytes(6)
+      .toString("hex")
+      .toUpperCase()}`;
+
+    /*
+     * NOTE: paymentMethod intentionally OMITTED so C-TEX returns a
+     * hosted checkout URL instead of a virtual account.
+     */
+    const payload = {
+      amount: amountKobo,
+      currency: "NGN",
+      reference: idempotencyKey,
+      description: `Wallet topup for ${user.email}`,
+      metadata: {
+        userId: String(user._id),
+        email: user.email,
+      },
+      // paymentMethod deliberately not set — hosted checkout
+    };
+
+    const response = await axios.post(
+      `${env.ctex_base_url || "https://api.ctex.online/api/v1"}/payments`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${env.ctex_api_key}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        timeout: 30000,
+      },
+    );
+
+    const body = response.data;
+    if (!body?.success || !body?.data) {
+      res.statusCode = 400;
+      throw new Error(body?.message || "Failed to initiate C-TEX payment");
+    }
+
+    const payment = body.data;
+    const checkoutUrl = payment.checkoutUrl || payment.providerMetadata?.checkoutUrl;
+
+    if (!checkoutUrl) {
+      res.statusCode = 502;
+      throw new Error(
+        "C-TEX PAY did not return a checkout URL. Try again shortly.",
+      );
+    }
+
+    // Record the pending deposit. Webhook will match on paymentReference.
+    await WalletTransaction.create({
+      userId: user._id,
+      amount: Number(payment.amount) / 100, // naira
+      type: "DEPOSIT",
+      referenceId: payment.paymentReference,
+      paymentMethod: "CTEX",
+      depositorName: user.username,
+      status: "PENDING",
+      metadata: {
+        ctexReference: payment.paymentReference,
+        merchantReference: payment.merchantReference,
+        amountKobo: Number(payment.amount),
+        checkoutUrl,
+      },
+    });
+
+    res.status(201).json({
+      status: 201,
+      success: true,
+      message:
+        "Deposit initialized, redirect to the provided URL to complete payment",
+      data: {
+        referenceId: payment.paymentReference,
+        amount: Number(payment.amount) / 100,
+        currency: payment.currency,
+        status: payment.status,
+        checkoutUrl,
+      },
+    });
+  } catch (error) {
+    const ctexMessage = error.response?.data?.message;
+    if (ctexMessage) {
+      console.log("C-TEX init error:", {
+        status: error.response.status,
+        message: ctexMessage,
+      });
+    } else {
+      console.log("C-TEX init error:", error.message);
+    }
+    next(error);
+  }
+};
+
+/* =========================================================
+ * C-TEX PAY webhook — unchanged from account-transfer flow
+ * =======================================================
+ * The webhook payload is the same whether the customer paid via
+ * bank transfer or via the hosted checkout. Nothing here needs to
+ * change when switching to the checkout URL flow.
+ * ======================================================= */
+
+const ctexWebhook = async (req, res, next) => {
+  const signature = req.headers["x-ctex-signature"];
+  const rawBody = req.rawBody || JSON.stringify(req.body);
+
+  const session = await mongoose.startSession();
+
+  try {
+    if (!env.ctex_webhook_secret) {
+      console.error("C-TEX webhook: ctex_webhook_secret is not set");
+      return res.sendStatus(200);
+    }
+
+    if (!signature) {
+      console.warn("C-TEX webhook: missing signature header");
+      return res.sendStatus(401);
+    }
+
+    const expected =
+      "sha256=" +
+      crypto
+        .createHmac("sha256", env.ctex_webhook_secret)
+        .update(rawBody)
+        .digest("hex");
+
+    const expectedBuf = Buffer.from(expected, "utf8");
+    const receivedBuf = Buffer.from(signature, "utf8");
+
+    if (
+      expectedBuf.length !== receivedBuf.length ||
+      !crypto.timingSafeEqual(expectedBuf, receivedBuf)
+    ) {
+      console.warn("C-TEX webhook: invalid signature");
+      return res.sendStatus(401);
+    }
+
+    res.sendStatus(200);
+
+    const event = req.body || {};
+    const eventType = event.type;
+    const data = event.data || {};
+
+    if (eventType !== "payment.success") {
+      console.log("C-TEX webhook: ignoring event", eventType);
+      return;
+    }
+
+    const referenceId = data.paymentReference;
+    if (!referenceId) {
+      console.warn("C-TEX webhook: missing paymentReference");
+      return;
+    }
+
+    const gatewayStatus = normalizeCtexStatus(data.status);
+
+    await session.withTransaction(async () => {
+      const transaction = await WalletTransaction.findOne({
+        referenceId,
+      }).session(session);
+
+      if (!transaction) {
+        console.warn("C-TEX webhook: no matching wallet transaction", {
+          referenceId,
+        });
+        return;
+      }
+
+      if (transaction.status === "SUCCESS") {
+        return;
+      }
+
+      if (gatewayStatus !== "SUCCESS") {
+        transaction.status = gatewayStatus;
+        await transaction.save({ session });
+
+        await sendDepositFailedNotification(
+          transaction.userId,
+          transaction.amount,
+          referenceId,
+          "C-TEX PAY reported the payment did not succeed",
+        );
+        return;
+      }
+
+      const amountToCredit = transaction.amount; // naira
+      const webhookAmountKobo = Number(data.amount);
+      const webhookAmount = Number.isFinite(webhookAmountKobo)
+        ? webhookAmountKobo / 100
+        : NaN;
+
+      if (Number.isFinite(webhookAmount) && webhookAmount !== amountToCredit) {
+        await sendDepositFailedNotification(
+          transaction.userId,
+          transaction.amount,
+          referenceId,
+          "Payment amount did not match the amount requested. Contact support if you completed the transfer.",
+        );
+        throw new Error("C-TEX webhook amount mismatch");
+      }
+
+      const wallet = await User.findOneAndUpdate(
+        { _id: transaction.userId },
+        {
+          $setOnInsert: { _id: transaction.userId },
+          $inc: { walletBalance: amountToCredit },
+        },
+        { new: true, upsert: true, session },
+      );
+
+      transaction.status = "SUCCESS";
+      transaction.orderId =
+        data.metadata?.providerReference ||
+        data.metadata?.providerTxnId ||
+        referenceId;
+      transaction.balanceAfter = wallet.walletBalance;
+      transaction.balanceBefore = wallet.walletBalance - amountToCredit;
+
+      await transaction.save({ session });
+
+      await sendDepositSuccessNotification(
+        transaction.userId,
+        amountToCredit,
+        referenceId,
+        wallet.walletBalance,
+      );
+    });
+  } catch (error) {
+    console.log("C-TEX webhook error:", error.message);
+  } finally {
+    await session.endSession();
+  }
+};
+
+/* =========================================================
+ * EXPORTS
+ * ======================================================= */
+
 export {
   initialiseDeposit,
   webhookHandler,
@@ -471,4 +756,6 @@ export {
   initializeManualPayment,
   initializeQuestPayment,
   questWebhook,
+  initializeCtexPayment,
+  ctexWebhook,
 };

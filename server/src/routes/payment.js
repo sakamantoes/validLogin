@@ -8,6 +8,8 @@ import {
   webhookHandler,
   initializeQuestPayment,
   questWebhook,
+  initializeCtexPayment,
+  ctexWebhook,
 } from "../controller/payment.js";
 import {
   initialiseDepositValidator,
@@ -15,10 +17,15 @@ import {
   paymentStatusValidator,
   manualPaymentValidator,
 } from "../validator/payment.validator.js";
-import authMiddleware from "../middleware/authMiddleware.js";
-import { validateUserRole } from "../middleware/authMiddleware.js";
+import authMiddleware, {
+  validateUserRole,
+} from "../middleware/authMiddleware.js";
 
 const router = Router();
+
+/* =========================================================
+ * SQUAD
+ * ======================================================= */
 
 router.post(
   "/squad/initialize-deposit",
@@ -26,8 +33,12 @@ router.post(
   validateUserRole,
   initialiseDepositValidator,
   validateData,
-  initialiseDeposit,
+  initialiseDeposit
 );
+
+/* =========================================================
+ * MANUAL
+ * ======================================================= */
 
 router.post(
   "/manual/initialize-deposit",
@@ -35,8 +46,12 @@ router.post(
   validateUserRole,
   manualPaymentValidator,
   validateData,
-  initializeManualPayment,
+  initializeManualPayment
 );
+
+/* =========================================================
+ * QUEST
+ * ======================================================= */
 
 router.post(
   "/quest/initialize-deposit",
@@ -44,17 +59,45 @@ router.post(
   validateUserRole,
   initialiseDepositValidator,
   validateData,
-  initializeQuestPayment,
+  initializeQuestPayment
 );
+
+/* =========================================================
+ * C-TEX PAY (new)
+ * =======================================================
+ * Follows the same pattern as the other providers:
+ *   - auth + role check on the initialize route
+ *   - the same Zod validator (amount) is reused
+ *   - webhook route is public (C-TEX authenticates via signature)
+ * ======================================================= */
+
+router.post(
+  "/ctex/initialize-deposit",
+  authMiddleware,
+  validateUserRole,
+  initialiseDepositValidator,
+  validateData,
+  initializeCtexPayment
+);
+
+router.post("/ctex/webhook", ctexWebhook);
+
+/* =========================================================
+ * SHARED (callback + status)
+ * ======================================================= */
 
 router.post(
   "/callback",
   callbackUrlValidator,
   validateData,
-  callbackUrlHandler,
+  callbackUrlHandler
 );
 
 router.post("/status", paymentStatusValidator, validateData, getPaymentStatus);
+
+/* =========================================================
+ * WEBHOOKS (public, provider-signed)
+ * ======================================================= */
 
 router.post("/webhook", webhookHandler);
 router.post("/quest/webhook", questWebhook);

@@ -15,12 +15,14 @@ import CronJob from "../cron-job.js";
 import compression from "compression";
 import SMSPOOLCRON from "../smspool-cron.js";
 import { syncJustVerifyBoostAccounts } from "../justverified-cron.js";
+import { captureRawBody } from "./middleware/rawBody.middleware.js";
 
 const app = express();
 
 app.set("trust proxy", 1);
 app.use(compression());
 app.use(morgan("dev"));
+app.use(captureRawBody);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
