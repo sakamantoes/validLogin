@@ -7,8 +7,8 @@ export const initialiseDepositValidator = [
     .notEmpty()
     .withMessage("Amount is required"),
   body("paymentMethod")
-    .isIn(["SQUAD", "QUEST", "MANUAL_TRANSFER"])
-    .withMessage("Payment method must be one of: SQUAD, QUEST, MANUAL_TRANSFER")
+    .isIn(["SQUAD", "QUEST", "MANUAL_TRANSFER", "CTEX"])
+    .withMessage("Payment method must be one of: SQUAD, QUEST, MANUAL_TRANSFER, CTEX")
     .notEmpty(),
 ];
 
