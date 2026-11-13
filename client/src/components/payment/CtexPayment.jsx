@@ -1,6 +1,6 @@
 import { AlertCircle, ArrowRight, Loader2, Lock } from "lucide-react";
 import { useRef, useState } from "react";
-import { initializeCtexPayment } from "../../services/payment.js";
+import { initializeCtexPayment } from "../../service/payment.js";
 import CtexPaymentShell from "./CtexPaymentShell.jsx";
 import { savePendingCtex } from "./ctexStorage.js";
 
