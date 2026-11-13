@@ -10,6 +10,7 @@ import {
   sendPaymentReceivedNotification,
 } from "./notificationController.js";
 import { ensureCtexCustomer } from "./ctexCustomerController.js";
+import CtexWebhookEvent from "../model/CtexWebhookEvent.js";
 
 /* =========================================================
  * HELPERS
@@ -604,54 +605,60 @@ const initializeCtexPayment = async (req, res, next) => {
     next(error);
   }
 };
-/* =========================================================
- * ctex PAY webhook — unchanged from account-transfer flow
- * =======================================================
- * The webhook payload is the same whether the customer paid via
- * bank transfer or via the hosted checkout. Nothing here needs to
- * change when switching to the checkout URL flow.
- * ======================================================= */
 
 /* =========================================================
- * ctex PAY webhook
+ * ctex PAY webhook — production
  * =======================================================
- * Handles success AND failure events for both bank-transfer and
- * hosted-checkout payments. The webhook is the only thing that
- * credits the wallet.
+ * Follows ctex's documented safe-handling flow:
  *
- * Responses:
- *   401 → bad / missing signature
- *   503 → secret not configured (provider will retry)
- *   200 → processed, duplicate, or intentionally ignored
- *   500 → unexpected failure (provider will retry)
+ *   1. Verify X-C-TEX-Signature against the exact raw body.
+ *   2. Parse JSON only after verification.
+ *   3. Require type === "payment.success"; validate event id + ref.
+ *   4. Insert event id into CtexWebhookEvent (unique index) →
+ *      duplicates are a no-op, never re-fulfilled.
+ *   5. Re-verify the payment from ctex's API using our key.
+ *   6. Confirm status, paymentReference, merchantReference,
+ *      currency, and amount.
+ *   7. Credit the wallet atomically and mark the txn SUCCESS.
+ *   8. Respond 2xx on success / duplicate / safely-ignored.
+ *      401 only for bad signature; 5xx only if we truly cannot
+ *      persist or fulfill.
+ *
+ * The sender treats any 2xx as delivered. Never trust the body
+ * before the signature is verified.
  * ======================================================= */
-
-const CTEX_SUCCESS_EVENTS = ["payment.success"];
-const CTEX_FAILURE_EVENTS = [
-  "payment.failed",
-  "payment.expired",
-  "payment.cancelled",
-];
 
 const ctexWebhook = async (req, res) => {
-  const signature = req.headers["x-ctex-signature"];
-  const rawBody = req.rawBody;
-
+  // ---- 0. configuration guards --------------------------------------
   if (!env.ctex_webhook_secret) {
     console.error("ctex webhook: ctex_webhook_secret is not set");
     return res.sendStatus(503);
   }
-
-  if (!signature) {
-    console.warn("ctex webhook: missing signature header");
-    return res.sendStatus(401);
+  if (!env.ctex_api_key) {
+    console.error("ctex webhook: ctex_api_key is not set");
+    return res.sendStatus(503);
   }
 
+  // ---- 1. raw body --------------------------------------------------
+  // app.js stores the exact bytes on req.rawBody for /api/payment/*.
+  // If it's missing we cannot verify the signature — refuse.
+  const rawBody = req.rawBody;
   if (!rawBody) {
-    console.error("ctex webhook: raw body not captured, check app.js json verify hook");
+    console.error(
+      "ctex webhook: raw body not captured — check app.js express.json verify hook",
+    );
     return res.sendStatus(500);
   }
 
+  const signature = req.headers["x-ctex-signature"];
+  if (!signature) {
+    console.warn("ctex webhook: missing X-C-TEX-Signature header");
+    return res.sendStatus(401);
+  }
+
+  // ---- 2. signature verification ------------------------------------
+  // Doc: "HMAC-SHA256 and the merchant webhook secret".
+  // Header: "sha256=<lowercase-hex-digest>".
   const expected =
     "sha256=" +
     crypto
@@ -670,82 +677,187 @@ const ctexWebhook = async (req, res) => {
     return res.sendStatus(401);
   }
 
-  const event = req.body || {};
-  const eventType = event.type;
-  const data = event.data || {};
-
-  const isSuccessEvent = CTEX_SUCCESS_EVENTS.includes(eventType);
-  const isFailureEvent = CTEX_FAILURE_EVENTS.includes(eventType);
-
-  if (!isSuccessEvent && !isFailureEvent) {
-    console.log("ctex webhook: ignoring event", eventType);
-    return res.sendStatus(200);
-  }
-
-  const referenceId = data.paymentReference;
-  if (!referenceId) {
-    console.warn("ctex webhook: missing paymentReference");
-    return res.sendStatus(200);
-  }
-
-  const gatewayStatus = isSuccessEvent
-    ? normalizeCtexStatus(data.status)
-    : "FAILED";
-
-  // A success event that isn't actually SUCCESS yet is not actionable.
-  if (gatewayStatus === "PENDING") {
-    return res.sendStatus(200);
-  }
-
-  const session = await mongoose.startSession();
-  let notification = null;
-
+  // ---- 3. parse JSON only after verification ------------------------
+  let event;
   try {
-    await session.withTransaction(async () => {
-      // withTransaction can re-run this callback; reset per attempt.
-      notification = null;
+    event = JSON.parse(rawBody);
+  } catch (err) {
+    console.error("ctex webhook: body is not valid JSON");
+    // Signature matched, so this is a malformed payload from ctex.
+    // Ack to stop retries of the same bytes.
+    return res.sendStatus(200);
+  }
 
+  const eventType = event?.type;
+  const eventId = event?.id;
+  const data = event?.data || {};
+  const paymentReference = data.paymentReference;
+
+  if (eventType !== "payment.success") {
+    // We only fulfill on payment.success; ack and drop everything else.
+    console.log("ctex webhook: ignoring event type", eventType);
+    return res.sendStatus(200);
+  }
+
+  if (!eventId || !paymentReference) {
+    console.warn(
+      "ctex webhook: missing event id or paymentReference — cannot persist",
+      { eventId, paymentReference },
+    );
+    // Cannot safely persist → ask ctex to retry.
+    return res.sendStatus(500);
+  }
+
+  // ---- 4. idempotency: insert event id with unique index ------------
+  // If the event was already recorded, the insert throws E11000 and we
+  // return 200 without re-fulfilling.
+  try {
+    await CtexWebhookEvent.create({
+      eventId,
+      type: eventType,
+      paymentReference,
+      merchantReference: data.merchantReference,
+      amount: Number(data.amount),
+      currency: data.currency,
+      rawPayload: event,
+    });
+  } catch (err) {
+    if (err?.code === 11000) {
+      console.log("ctex webhook: duplicate event, already fulfilled", {
+        eventId,
+      });
+      return res.sendStatus(200);
+    }
+    console.error("ctex webhook: failed to persist event id", {
+      eventId,
+      message: err?.message,
+    });
+    // Cannot persist → ask ctex to retry.
+    return res.sendStatus(500);
+  }
+
+  // ---- 5. verify the payment with ctex ------------------------------
+  let verified;
+  try {
+    const verifyResponse = await axios.get(
+      `${env.ctex_base_url || "https://api.ctex.online/api/v1"}/payments/${encodeURIComponent(
+        paymentReference,
+      )}`,
+      {
+        headers: {
+          Authorization: `Bearer ${env.ctex_api_key}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      },
+    );
+    verified = verifyResponse.data?.data;
+  } catch (err) {
+    // The event row is already persisted; a retry will hit the unique
+    // index and skip fulfillment, so we must NOT persist again on a
+    // 500 here — the row is the proof we received it. To let ctex retry
+    // we need the row deleted so the next delivery can proceed.
+    await CtexWebhookEvent.deleteOne({ eventId }).catch(() => {});
+    console.error("ctex webhook: payment verification failed", {
+      paymentReference,
+      message: err?.message,
+      status: err?.response?.status,
+    });
+    return res.sendStatus(500);
+  }
+
+  if (!verified) {
+    await CtexWebhookEvent.deleteOne({ eventId }).catch(() => {});
+    console.error(
+      "ctex webhook: payment verification returned empty body",
+      { paymentReference },
+    );
+    return res.sendStatus(500);
+  }
+
+  // ---- 6. compare expected values -----------------------------------
+  const verifiedStatus = normalizeCtexStatus(verified.status);
+  const verifiedAmountKobo = Number(verified.amount);
+  const verifiedCurrency = String(verified.currency || "").toUpperCase();
+  const verifiedPaymentRef = verified.paymentReference;
+  const verifiedMerchantRef = verified.merchantReference;
+
+  if (verifiedStatus !== "SUCCESS") {
+    // Event said success but the source of truth disagrees.
+    console.warn(
+      "ctex webhook: verification says not SUCCESS; leaving for manual review",
+      {
+        paymentReference,
+        verifiedStatus: verified.status,
+      },
+    );
+    // Row stays as a record of what we received. Ack to stop retries —
+    // this is a real mismatch, not a transient failure.
+    return res.sendStatus(200);
+  }
+
+  if (verifiedPaymentRef !== paymentReference) {
+    console.warn("ctex webhook: paymentReference mismatch", {
+      expected: paymentReference,
+      verified: verifiedPaymentRef,
+    });
+    return res.sendStatus(200);
+  }
+
+  if (
+    verifiedMerchantRef &&
+    data.merchantReference &&
+    verifiedMerchantRef !== data.merchantReference
+  ) {
+    console.warn("ctex webhook: merchantReference mismatch", {
+      fromEvent: data.merchantReference,
+      fromVerify: verifiedMerchantRef,
+    });
+    return res.sendStatus(200);
+  }
+
+  if (verifiedCurrency !== "NGN") {
+    console.warn("ctex webhook: unexpected currency", {
+      paymentReference,
+      verifiedCurrency,
+    });
+    return res.sendStatus(200);
+  }
+
+  // ---- 7. fulfill: credit wallet atomically -------------------------
+  const session = await mongoose.startSession();
+  try {
+    let credited = false;
+
+    await session.withTransaction(async () => {
       const transaction = await WalletTransaction.findOne({
-        referenceId,
+        referenceId: paymentReference,
       }).session(session);
 
       if (!transaction) {
+        // Not our payment — persist the event row but don't credit.
         console.warn("ctex webhook: no matching wallet transaction", {
-          referenceId,
+          paymentReference,
         });
         return;
       }
 
-      // Never re-process or downgrade a finished transaction.
-      if (transaction.status === "SUCCESS" || transaction.status === "FAILED") {
-        return;
+      if (transaction.status === "SUCCESS") {
+        return; // already fulfilled
       }
 
-      if (gatewayStatus === "FAILED") {
-        transaction.status = "FAILED";
-        await transaction.save({ session });
-
-        notification = {
-          type: "failed",
-          userId: transaction.userId,
-          amount: transaction.amount,
-          reason: "ctex PAY reported the payment did not succeed",
-        };
-        return;
-      }
-
-      // SUCCESS: compare in integer kobo to avoid float drift.
       const expectedKobo = Math.round(transaction.amount * 100);
-      const paidKobo = Number(data.amount);
-
-      if (Number.isFinite(paidKobo) && paidKobo !== expectedKobo) {
-        console.error("ctex webhook: amount mismatch, needs manual review", {
-          referenceId,
+      if (
+        Number.isFinite(verifiedAmountKobo) &&
+        verifiedAmountKobo !== expectedKobo
+      ) {
+        // Verified amount differs from what we created the txn for.
+        // Leave PENDING for manual reconciliation, record and ack.
+        console.error("ctex webhook: amount mismatch vs wallet txn", {
+          paymentReference,
           expectedKobo,
-          paidKobo,
+          verifiedAmountKobo,
         });
-
-        // Leave PENDING (not credited, not failed) for manual reconciliation.
         return;
       }
 
@@ -761,42 +873,49 @@ const ctexWebhook = async (req, res) => {
       );
 
       transaction.status = "SUCCESS";
-      transaction.orderId = data.providerReference || data.providerTransactionId;
+      transaction.orderId =
+        verified.providerReference || verified.providerTransactionId;
       transaction.balanceAfter = wallet.walletBalance;
       transaction.balanceBefore = wallet.walletBalance - amountToCredit;
       await transaction.save({ session });
 
-      notification = {
-        type: "success",
-        userId: transaction.userId,
-        amount: amountToCredit,
-        referenceId,
-        balance: wallet.walletBalance,
-      };
+      credited = true;
+
+      // Notification is best-effort and intentionally outside the
+      // transaction so a notification failure never rolls back money.
+      try {
+        await sendDepositSuccessNotification(
+          transaction.userId,
+          amountToCredit,
+          paymentReference,
+          wallet.walletBalance,
+        );
+      } catch (notifyErr) {
+        console.error(
+          "ctex webhook: success notification failed (non-fatal)",
+          {
+            paymentReference,
+            message: notifyErr?.message,
+          },
+        );
+      }
     });
 
-    // Send notification only after the transaction has committed, so a
-    // rolled-back transaction never produces a "credited" notification.
-    if (notification?.type === "success") {
-      await sendDepositSuccessNotification(
-        notification.userId,
-        notification.amount,
-        notification.referenceId,
-        notification.balance,
-      );
-    } else if (notification?.type === "failed") {
-      await sendDepositFailedNotification(
-        notification.userId,
-        notification.amount,
-        referenceId,
-        notification.reason,
-      );
-    }
+    console.log("ctex webhook: fulfilled", {
+      paymentReference,
+      credited,
+    });
 
     return res.sendStatus(200);
-  } catch (error) {
-    console.error("ctex webhook error:", error.message);
-    // Non-2xx so ctex retries.
+  } catch (err) {
+    // Fulfillment failed. Delete the event row so ctex's next retry can
+    // re-enter the flow — otherwise the unique index would block it and
+    // we'd lose money permanently.
+    await CtexWebhookEvent.deleteOne({ eventId }).catch(() => {});
+    console.error("ctex webhook: fulfillment failed", {
+      paymentReference,
+      message: err?.message,
+    });
     return res.sendStatus(500);
   } finally {
     await session.endSession();
