@@ -476,9 +476,9 @@ const questWebhook = async (req, res, next) => {
 };
 
 /* =========================================================
- * C-TEX PAY — checkout URL flow
+ * ctex PAY — checkout URL flow
  * =======================================================
- * Unlike Squad/Quest, C-TEX requires us to be explicit about which
+ * Unlike Squad/Quest, ctex requires us to be explicit about which
  * checkout surface to open:
  *
  *   paymentMethod: "ACCOUNT_TRANSFER"  → bank-transfer-only flow
@@ -487,7 +487,7 @@ const questWebhook = async (req, res, next) => {
  *                                        (returns checkoutUrl)
  *
  * We want the hosted checkout here so the user is redirected to a
- * C-TEX page that handles transfer/card/USSD, then returns to our
+ * ctex page that handles transfer/card/USSD, then returns to our
  * callback URL. The webhook payload is identical either way.
  * ======================================================= */
 
@@ -498,7 +498,7 @@ const initializeCtexPayment = async (req, res, next) => {
   try {
     if (!env.ctex_api_key) {
       res.statusCode = 503;
-      throw new Error("C-TEX PAY is not configured");
+      throw new Error("ctex PAY is not configured");
     }
 
     const numericAmount = Number(amount);
@@ -507,7 +507,7 @@ const initializeCtexPayment = async (req, res, next) => {
       throw new Error("Minimum deposit amount is ₦100");
     }
 
-    // Convert naira to kobo for C-TEX
+    // Convert naira to kobo for ctex
     const amountKobo = Math.round(numericAmount * 100);
 
     // Unique idempotency key per deposit attempt
@@ -523,7 +523,7 @@ const initializeCtexPayment = async (req, res, next) => {
       currency: "NGN",
       reference: idempotencyKey,
       description: `Wallet topup for ${user.email}`,
-      // Where C-TEX sends the user after checkout. paymentReference isn't known
+      // Where ctex sends the user after checkout. paymentReference isn't known
       // yet, so the frontend recovers it from sessionStorage (returned=1).
       callbackUrl: `${frontendUrl}/f/fund-account?paymentMethod=ctex&returned=1&amount=${numericAmount}`,
       metadata: {
@@ -549,7 +549,7 @@ const initializeCtexPayment = async (req, res, next) => {
     const body = response.data;
     if (!body?.success || !body?.data) {
       res.statusCode = 400;
-      throw new Error(body?.message || "Failed to initiate C-TEX payment");
+      throw new Error(body?.message || "Failed to initiate ctex payment");
     }
 
     const payment = body.data;
@@ -559,7 +559,7 @@ const initializeCtexPayment = async (req, res, next) => {
     if (!checkoutUrl) {
       res.statusCode = 502;
       throw new Error(
-        "C-TEX PAY did not return a checkout URL. Try again shortly.",
+        "ctex PAY did not return a checkout URL. Try again shortly.",
       );
     }
 
@@ -595,19 +595,19 @@ const initializeCtexPayment = async (req, res, next) => {
   } catch (error) {
     const ctexMessage = error.response?.data?.message;
     if (ctexMessage) {
-      console.log("C-TEX init error:", {
+      console.log("ctex init error:", {
         status: error.response.status,
         message: ctexMessage,
       });
     } else {
-      console.log("C-TEX init error:", error.message);
+      console.log("ctex init error:", error.message);
     }
     next(error);
   }
 };
 
 /* =========================================================
- * C-TEX PAY webhook — unchanged from account-transfer flow
+ * ctex PAY webhook — unchanged from account-transfer flow
  * =======================================================
  * The webhook payload is the same whether the customer paid via
  * bank transfer or via the hosted checkout. Nothing here needs to
@@ -615,7 +615,7 @@ const initializeCtexPayment = async (req, res, next) => {
  * ======================================================= */
 
 /* =========================================================
- * C-TEX PAY webhook
+ * ctex PAY webhook
  * =======================================================
  * Handles success AND failure events for both bank-transfer and
  * hosted-checkout payments. The webhook is the only thing that
@@ -640,17 +640,17 @@ const ctexWebhook = async (req, res) => {
   const rawBody = req.rawBody;
 
   if (!env.ctex_webhook_secret) {
-    console.error("C-TEX webhook: ctex_webhook_secret is not set");
+    console.error("ctex webhook: ctex_webhook_secret is not set");
     return res.sendStatus(503);
   }
 
   if (!signature) {
-    console.warn("C-TEX webhook: missing signature header");
+    console.warn("ctex webhook: missing signature header");
     return res.sendStatus(401);
   }
 
   if (!rawBody) {
-    console.error("C-TEX webhook: raw body not captured, check app.js json verify hook");
+    console.error("ctex webhook: raw body not captured, check app.js json verify hook");
     return res.sendStatus(500);
   }
 
@@ -668,7 +668,7 @@ const ctexWebhook = async (req, res) => {
     expectedBuf.length !== receivedBuf.length ||
     !crypto.timingSafeEqual(expectedBuf, receivedBuf)
   ) {
-    console.warn("C-TEX webhook: invalid signature");
+    console.warn("ctex webhook: invalid signature");
     return res.sendStatus(401);
   }
 
@@ -680,13 +680,13 @@ const ctexWebhook = async (req, res) => {
   const isFailureEvent = CTEX_FAILURE_EVENTS.includes(eventType);
 
   if (!isSuccessEvent && !isFailureEvent) {
-    console.log("C-TEX webhook: ignoring event", eventType);
+    console.log("ctex webhook: ignoring event", eventType);
     return res.sendStatus(200);
   }
 
   const referenceId = data.paymentReference;
   if (!referenceId) {
-    console.warn("C-TEX webhook: missing paymentReference");
+    console.warn("ctex webhook: missing paymentReference");
     return res.sendStatus(200);
   }
 
@@ -712,7 +712,7 @@ const ctexWebhook = async (req, res) => {
       }).session(session);
 
       if (!transaction) {
-        console.warn("C-TEX webhook: no matching wallet transaction", {
+        console.warn("ctex webhook: no matching wallet transaction", {
           referenceId,
         });
         return;
@@ -731,7 +731,7 @@ const ctexWebhook = async (req, res) => {
           type: "failed",
           userId: transaction.userId,
           amount: transaction.amount,
-          reason: "C-TEX PAY reported the payment did not succeed",
+          reason: "ctex PAY reported the payment did not succeed",
         };
         return;
       }
@@ -741,7 +741,7 @@ const ctexWebhook = async (req, res) => {
       const paidKobo = Number(data.amount);
 
       if (Number.isFinite(paidKobo) && paidKobo !== expectedKobo) {
-        console.error("C-TEX webhook: amount mismatch, needs manual review", {
+        console.error("ctex webhook: amount mismatch, needs manual review", {
           referenceId,
           expectedKobo,
           paidKobo,
@@ -797,8 +797,8 @@ const ctexWebhook = async (req, res) => {
 
     return res.sendStatus(200);
   } catch (error) {
-    console.error("C-TEX webhook error:", error.message);
-    // Non-2xx so C-TEX retries.
+    console.error("ctex webhook error:", error.message);
+    // Non-2xx so ctex retries.
     return res.sendStatus(500);
   } finally {
     await session.endSession();

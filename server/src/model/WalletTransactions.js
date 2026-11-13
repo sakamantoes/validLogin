@@ -40,11 +40,11 @@ const walletTransactionSchema = new mongoose.Schema(
         "SQUAD",
         "MANUAL_TRANSFER",
         "ADMIN_REFUND",
-        "CTEX",                // ← added for C-TEX PAY
+        "CTEX",                // ← added for ctex PAY
       ],
     },
 
-    // Provider-specific metadata (C-TEX reference, merchant reference,
+    // Provider-specific metadata (ctex reference, merchant reference,
     // raw amount in kobo, etc.). Kept as a plain object so each provider
     // can store what it needs without schema changes.
     metadata: {

@@ -90,7 +90,7 @@ export default function CtexPayment({ amount, onBack }) {
         throw new Error("We couldn't start your checkout. Please try again.");
       }
 
-      // The user leaves the app for C-TEX; this lets us verify when they come back.
+      // The user leaves the app for ctex; this lets us verify when they come back.
       if (payload.referenceId) {
         savePendingCtex({
           reference: payload.referenceId,
@@ -108,7 +108,7 @@ export default function CtexPayment({ amount, onBack }) {
 
   return (
     <CtexPaymentShell
-      title="Pay with C-TEX PAY"
+      title="Pay with ctex PAY"
       subtitle="You'll be taken to a secure checkout to complete this payment."
       onBack={isLoading ? undefined : onBack}
     >
@@ -166,7 +166,7 @@ export default function CtexPayment({ amount, onBack }) {
 
         <p className="flex items-center justify-center gap-1.5 text-xs text-muted">
           <Lock size={13} />
-          Secured by C-TEX PAY. Your wallet is credited once payment is
+          Secured by ctex PAY. Your wallet is credited once payment is
           confirmed.
         </p>
       </div>

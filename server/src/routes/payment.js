@@ -63,12 +63,12 @@ router.post(
 );
 
 /* =========================================================
- * C-TEX PAY (new)
+ * ctex PAY (new)
  * =======================================================
  * Follows the same pattern as the other providers:
  *   - auth + role check on the initialize route
  *   - the same Zod validator (amount) is reused
- *   - webhook route is public (C-TEX authenticates via signature)
+ *   - webhook route is public (ctex authenticates via signature)
  * ======================================================= */
 
 router.post(

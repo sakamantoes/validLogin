@@ -100,7 +100,7 @@ export default function CtexPaymentStatus({ reference, amount, onBack }) {
           <AlertCircle size={40} className="mx-auto text-muted" />
           <p className="text-sm text-muted">
             We couldn't find this payment in your session. If you were charged,
-            your wallet will be credited automatically once C-TEX confirms the
+            your wallet will be credited automatically once ctex confirms the
             payment, and you'll get a notification.
           </p>
           <button

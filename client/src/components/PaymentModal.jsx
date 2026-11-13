@@ -4,8 +4,8 @@ import { useState } from "react";
 const paymentOptions = [
   {
     id: "ctex",
-    title: "Pay with C-TEX PAY",
-    description: "Fund your wallet instantly through C-TEX PAY secure checkout.",
+    title: "Pay with ctex PAY",
+    description: "Fund your wallet instantly through ctex PAY secure checkout.",
     icon: ShieldCheck,
   },
   // {
