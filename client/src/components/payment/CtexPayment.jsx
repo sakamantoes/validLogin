@@ -1,10 +1,42 @@
 import { AlertCircle, ArrowRight, Loader2, Lock } from "lucide-react";
 import { useRef, useState } from "react";
-import { initializeCtexPayment } from "../../service/payment.js";
+import { initializeCtexPayment } from "../../services/payment.js";
 import CtexPaymentShell from "./CtexPaymentShell.jsx";
 import { savePendingCtex } from "./ctexStorage.js";
 
 const MIN_AMOUNT = 100;
+const FALLBACK_ERROR = "Something went wrong. Please try again.";
+
+// Turns any error shape (string, { field: "msg" }, array, Zod issues) into a string,
+// so we never hand React an object to render.
+const toMessage = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+
+  if (Array.isArray(value)) {
+    return value.map(toMessage).filter(Boolean).join(". ");
+  }
+
+  if (typeof value === "object") {
+    if (typeof value.message === "string") return value.message;
+
+    return Object.values(value).map(toMessage).filter(Boolean).join(". ");
+  }
+
+  return String(value);
+};
+
+const getErrorMessage = (err) => {
+  const data = err?.response?.data;
+
+  return (
+    toMessage(data?.message) ||
+    toMessage(data?.errors) ||
+    toMessage(data?.error) ||
+    toMessage(err?.message) ||
+    FALLBACK_ERROR
+  );
+};
 
 // Only follow https links (or http on localhost during development).
 const isSafeRedirect = (value) => {
@@ -46,7 +78,10 @@ export default function CtexPayment({ amount, onBack }) {
 
     try {
       // Backend: { success, data: { referenceId, amount, currency, status, checkoutUrl } }
-      const res = await initializeCtexPayment({ amount: numericAmount });
+      const res = await initializeCtexPayment({
+        amount: numericAmount,
+        paymentMethod: "ctex", // required by the shared deposit validator
+      });
       const payload = res?.data ?? {};
       const checkoutUrl =
         typeof payload.checkoutUrl === "string" ? payload.checkoutUrl.trim() : "";
@@ -65,11 +100,7 @@ export default function CtexPayment({ amount, onBack }) {
 
       window.location.assign(checkoutUrl);
     } catch (err) {
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Something went wrong. Please try again.",
-      );
+      setError(getErrorMessage(err));
       submittingRef.current = false;
       setIsLoading(false);
     }
