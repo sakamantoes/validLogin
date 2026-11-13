@@ -501,13 +501,14 @@ const initializeCtexPayment = async (req, res, next) => {
       throw new Error("C-TEX PAY is not configured");
     }
 
-    if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount < 100) {
       res.statusCode = 400;
-      throw new Error("A valid amount is required");
+      throw new Error("Minimum deposit amount is ₦100");
     }
 
     // Convert naira to kobo for C-TEX
-    const amountKobo = Math.round(Number(amount) * 100);
+    const amountKobo = Math.round(numericAmount * 100);
 
     // Unique idempotency key per deposit attempt
     const idempotencyKey = `ctex-${user._id}-${crypto
@@ -515,15 +516,16 @@ const initializeCtexPayment = async (req, res, next) => {
       .toString("hex")
       .toUpperCase()}`;
 
-    /*
-     * NOTE: paymentMethod intentionally OMITTED so C-TEX returns a
-     * hosted checkout URL instead of a virtual account.
-     */
+    const frontendUrl = env.frontend_url || "https://www.validlogin.online";
+
     const payload = {
       amount: amountKobo,
       currency: "NGN",
       reference: idempotencyKey,
       description: `Wallet topup for ${user.email}`,
+      // Where C-TEX sends the user after checkout. paymentReference isn't known
+      // yet, so the frontend recovers it from sessionStorage (returned=1).
+      callbackUrl: `${frontendUrl}/f/fund-account?paymentMethod=ctex&returned=1&amount=${numericAmount}`,
       metadata: {
         userId: String(user._id),
         email: user.email,
@@ -551,7 +553,8 @@ const initializeCtexPayment = async (req, res, next) => {
     }
 
     const payment = body.data;
-    const checkoutUrl = payment.checkoutUrl || payment.providerMetadata?.checkoutUrl;
+    const checkoutUrl =
+      payment.checkoutUrl || payment.providerMetadata?.checkoutUrl;
 
     if (!checkoutUrl) {
       res.statusCode = 502;
@@ -560,7 +563,6 @@ const initializeCtexPayment = async (req, res, next) => {
       );
     }
 
-    // Record the pending deposit. Webhook will match on paymentReference.
     await WalletTransaction.create({
       userId: user._id,
       amount: Number(payment.amount) / 100, // naira
@@ -612,61 +614,99 @@ const initializeCtexPayment = async (req, res, next) => {
  * change when switching to the checkout URL flow.
  * ======================================================= */
 
-const ctexWebhook = async (req, res, next) => {
+/* =========================================================
+ * C-TEX PAY webhook
+ * =======================================================
+ * Handles success AND failure events for both bank-transfer and
+ * hosted-checkout payments. The webhook is the only thing that
+ * credits the wallet.
+ *
+ * Responses:
+ *   401 → bad / missing signature
+ *   503 → secret not configured (provider will retry)
+ *   200 → processed, duplicate, or intentionally ignored
+ *   500 → unexpected failure (provider will retry)
+ * ======================================================= */
+
+const CTEX_SUCCESS_EVENTS = ["payment.success"];
+const CTEX_FAILURE_EVENTS = [
+  "payment.failed",
+  "payment.expired",
+  "payment.cancelled",
+];
+
+const ctexWebhook = async (req, res) => {
   const signature = req.headers["x-ctex-signature"];
-  const rawBody = req.rawBody || JSON.stringify(req.body);
+  const rawBody = req.rawBody;
+
+  if (!env.ctex_webhook_secret) {
+    console.error("C-TEX webhook: ctex_webhook_secret is not set");
+    return res.sendStatus(503);
+  }
+
+  if (!signature) {
+    console.warn("C-TEX webhook: missing signature header");
+    return res.sendStatus(401);
+  }
+
+  if (!rawBody) {
+    console.error("C-TEX webhook: raw body not captured, check app.js json verify hook");
+    return res.sendStatus(500);
+  }
+
+  const expected =
+    "sha256=" +
+    crypto
+      .createHmac("sha256", env.ctex_webhook_secret)
+      .update(rawBody)
+      .digest("hex");
+
+  const expectedBuf = Buffer.from(expected, "utf8");
+  const receivedBuf = Buffer.from(String(signature), "utf8");
+
+  if (
+    expectedBuf.length !== receivedBuf.length ||
+    !crypto.timingSafeEqual(expectedBuf, receivedBuf)
+  ) {
+    console.warn("C-TEX webhook: invalid signature");
+    return res.sendStatus(401);
+  }
+
+  const event = req.body || {};
+  const eventType = event.type;
+  const data = event.data || {};
+
+  const isSuccessEvent = CTEX_SUCCESS_EVENTS.includes(eventType);
+  const isFailureEvent = CTEX_FAILURE_EVENTS.includes(eventType);
+
+  if (!isSuccessEvent && !isFailureEvent) {
+    console.log("C-TEX webhook: ignoring event", eventType);
+    return res.sendStatus(200);
+  }
+
+  const referenceId = data.paymentReference;
+  if (!referenceId) {
+    console.warn("C-TEX webhook: missing paymentReference");
+    return res.sendStatus(200);
+  }
+
+  const gatewayStatus = isSuccessEvent
+    ? normalizeCtexStatus(data.status)
+    : "FAILED";
+
+  // A success event that isn't actually SUCCESS yet is not actionable.
+  if (gatewayStatus === "PENDING") {
+    return res.sendStatus(200);
+  }
 
   const session = await mongoose.startSession();
+  let notification = null;
 
   try {
-    if (!env.ctex_webhook_secret) {
-      console.error("C-TEX webhook: ctex_webhook_secret is not set");
-      return res.sendStatus(200);
-    }
-
-    if (!signature) {
-      console.warn("C-TEX webhook: missing signature header");
-      return res.sendStatus(401);
-    }
-
-    const expected =
-      "sha256=" +
-      crypto
-        .createHmac("sha256", env.ctex_webhook_secret)
-        .update(rawBody)
-        .digest("hex");
-
-    const expectedBuf = Buffer.from(expected, "utf8");
-    const receivedBuf = Buffer.from(signature, "utf8");
-
-    if (
-      expectedBuf.length !== receivedBuf.length ||
-      !crypto.timingSafeEqual(expectedBuf, receivedBuf)
-    ) {
-      console.warn("C-TEX webhook: invalid signature");
-      return res.sendStatus(401);
-    }
-
-    res.sendStatus(200);
-
-    const event = req.body || {};
-    const eventType = event.type;
-    const data = event.data || {};
-
-    if (eventType !== "payment.success") {
-      console.log("C-TEX webhook: ignoring event", eventType);
-      return;
-    }
-
-    const referenceId = data.paymentReference;
-    if (!referenceId) {
-      console.warn("C-TEX webhook: missing paymentReference");
-      return;
-    }
-
-    const gatewayStatus = normalizeCtexStatus(data.status);
-
     await session.withTransaction(async () => {
+      // withTransaction can re-run this callback; reset per attempt.
+      notification = null;
+
       const transaction = await WalletTransaction.findOne({
         referenceId,
       }).session(session);
@@ -678,38 +718,40 @@ const ctexWebhook = async (req, res, next) => {
         return;
       }
 
-      if (transaction.status === "SUCCESS") {
+      // Never re-process or downgrade a finished transaction.
+      if (transaction.status === "SUCCESS" || transaction.status === "FAILED") {
         return;
       }
 
-      if (gatewayStatus !== "SUCCESS") {
-        transaction.status = gatewayStatus;
+      if (gatewayStatus === "FAILED") {
+        transaction.status = "FAILED";
         await transaction.save({ session });
 
-        await sendDepositFailedNotification(
-          transaction.userId,
-          transaction.amount,
-          referenceId,
-          "C-TEX PAY reported the payment did not succeed",
-        );
+        notification = {
+          type: "failed",
+          userId: transaction.userId,
+          amount: transaction.amount,
+          reason: "C-TEX PAY reported the payment did not succeed",
+        };
         return;
       }
 
-      const amountToCredit = transaction.amount; // naira
-      const webhookAmountKobo = Number(data.amount);
-      const webhookAmount = Number.isFinite(webhookAmountKobo)
-        ? webhookAmountKobo / 100
-        : NaN;
+      // SUCCESS: compare in integer kobo to avoid float drift.
+      const expectedKobo = Math.round(transaction.amount * 100);
+      const paidKobo = Number(data.amount);
 
-      if (Number.isFinite(webhookAmount) && webhookAmount !== amountToCredit) {
-        await sendDepositFailedNotification(
-          transaction.userId,
-          transaction.amount,
+      if (Number.isFinite(paidKobo) && paidKobo !== expectedKobo) {
+        console.error("C-TEX webhook: amount mismatch, needs manual review", {
           referenceId,
-          "Payment amount did not match the amount requested. Contact support if you completed the transfer.",
-        );
-        throw new Error("C-TEX webhook amount mismatch");
+          expectedKobo,
+          paidKobo,
+        });
+
+        // Leave PENDING (not credited, not failed) for manual reconciliation.
+        return;
       }
+
+      const amountToCredit = transaction.amount;
 
       const wallet = await User.findOneAndUpdate(
         { _id: transaction.userId },
@@ -721,24 +763,43 @@ const ctexWebhook = async (req, res, next) => {
       );
 
       transaction.status = "SUCCESS";
-      transaction.orderId =
-        data.metadata?.providerReference ||
-        data.metadata?.providerTxnId ||
-        referenceId;
+      transaction.orderId = data.providerReference || data.providerTransactionId;
       transaction.balanceAfter = wallet.walletBalance;
       transaction.balanceBefore = wallet.walletBalance - amountToCredit;
-
       await transaction.save({ session });
 
-      await sendDepositSuccessNotification(
-        transaction.userId,
-        amountToCredit,
+      notification = {
+        type: "success",
+        userId: transaction.userId,
+        amount: amountToCredit,
         referenceId,
-        wallet.walletBalance,
-      );
+        balance: wallet.walletBalance,
+      };
     });
+
+    // Send notification only after the transaction has committed, so a
+    // rolled-back transaction never produces a "credited" notification.
+    if (notification?.type === "success") {
+      await sendDepositSuccessNotification(
+        notification.userId,
+        notification.amount,
+        notification.referenceId,
+        notification.balance,
+      );
+    } else if (notification?.type === "failed") {
+      await sendDepositFailedNotification(
+        notification.userId,
+        notification.amount,
+        referenceId,
+        notification.reason,
+      );
+    }
+
+    return res.sendStatus(200);
   } catch (error) {
-    console.log("C-TEX webhook error:", error.message);
+    console.error("C-TEX webhook error:", error.message);
+    // Non-2xx so C-TEX retries.
+    return res.sendStatus(500);
   } finally {
     await session.endSession();
   }

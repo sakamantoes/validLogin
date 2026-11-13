@@ -15,15 +15,24 @@ import CronJob from "../cron-job.js";
 import compression from "compression";
 import SMSPOOLCRON from "../smspool-cron.js";
 import { syncJustVerifyBoostAccounts } from "../justverified-cron.js";
-import { captureRawBody } from "./middleware/rawBody.middleware.js";
 
 const app = express();
 
 app.set("trust proxy", 1);
 app.use(compression());
 app.use(morgan("dev"));
-app.use(captureRawBody);
-app.use(express.json());
+
+// Keep the exact bytes of JSON bodies on payment routes (webhooks) so provider
+// HMAC signatures can be verified against the raw payload, not a re-serialised copy.
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      if (req.originalUrl.startsWith("/api/payment")) {
+        req.rawBody = buf.toString("utf8");
+      }
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
@@ -54,14 +63,17 @@ app.use("/api/logs", platformLogsRoutes);
 let isRunning = false;
 
 app.get("/cron-jobs", async (req, res) => {
-  try {
-    if (isRunning) {
-      return res
-        .status(200)
-        .send("Cron jobs are already running. Please wait for them to finish.");
-    }
+  // Guard sits outside try/finally: previously the early return still hit
+  // `finally`, which reset isRunning to false and defeated the lock.
+  if (isRunning) {
+    return res
+      .status(200)
+      .send("Cron jobs are already running. Please wait for them to finish.");
+  }
 
-    isRunning = true;
+  isRunning = true;
+
+  try {
     await CronJob();
     await SMSPOOLCRON();
     await syncJustVerifyBoostAccounts();

@@ -1,14 +1,13 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  Building2,
-  CreditCard,
-  Landmark,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 
 const paymentOptions = [
+  {
+    id: "ctex",
+    title: "Pay with C-TEX PAY",
+    description: "Fund your wallet instantly through C-TEX PAY secure checkout.",
+    icon: ShieldCheck,
+  },
   // {
   //   id: "quest",
   //   title: "Pay with QUEST",
@@ -30,7 +29,7 @@ export default function PaymentModal({
   showBackButton = false,
   onSelectPaymentMethod,
 }) {
-  const [selectedMethod, setSelectedMethod] = useState("squad");
+  const [selectedMethod, setSelectedMethod] = useState(paymentOptions[0].id);
   const [amount, setAmount] = useState(initialAmount);
 
   if (!isOpen) return null;
@@ -39,9 +38,14 @@ export default function PaymentModal({
     (option) => option.id === selectedMethod,
   );
 
+  const numericAmount = Number(amount);
+  const isAmountValid = Number.isFinite(numericAmount) && numericAmount >= 100;
+
   const handleProceed = () => {
+    if (!isAmountValid || !selectedOption) return;
+
     onSelectPaymentMethod?.({
-      amount: Number(amount),
+      amount: numericAmount,
       paymentMethod: selectedMethod,
     });
   };
@@ -86,9 +90,10 @@ export default function PaymentModal({
             <input
               type="number"
               min="100"
+              inputMode="decimal"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
-              placeholder="Enter amount"
+              placeholder="Enter amount (min. 100)"
               className="mt-2 h-12 w-full rounded-xl border border-border bg-bg px-4 text-heading outline-none transition-colors placeholder:text-muted focus:border-brand"
             />
           </label>
@@ -103,6 +108,7 @@ export default function PaymentModal({
                   key={option.id}
                   type="button"
                   onClick={() => setSelectedMethod(option.id)}
+                  aria-pressed={isSelected}
                   className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all ${
                     isSelected
                       ? "border-brand bg-brand"
@@ -138,7 +144,7 @@ export default function PaymentModal({
           <button
             type="button"
             onClick={handleProceed}
-            disabled={!amount || Number(amount) <= 0}
+            disabled={!isAmountValid}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-bold text-on-brand transition-colors hover:bg-brand disabled:cursor-not-allowed disabled:opacity-50"
           >
             Continue with {selectedOption?.title.replace("Pay with ", "")}

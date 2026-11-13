@@ -12,9 +12,22 @@ export const initializeQuestPayment = async (data) => {
   return res.data;
 };
 
+export const initializeCtexPayment = async (data) => {
+  const res = await api.post("/api/payment/ctex/initialize-deposit", data);
+
+  return res.data;
+};
+
 export const getSquadPaymentStatus = async (data) => {
   const res = await api.post(`/api/payment/status`, data);
-  console.log("reference error", res.data);
+
+  return res.data;
+};
+
+// Backend (getPaymentStatus) expects { referenceId } and returns
+// { success, message, data: { referenceId, status: "PENDING" | "SUCCESS" | "FAILED" } }
+export const getCtexPaymentStatus = async (referenceId, { signal } = {}) => {
+  const res = await api.post("/api/payment/status", { referenceId }, { signal });
 
   return res.data;
 };
