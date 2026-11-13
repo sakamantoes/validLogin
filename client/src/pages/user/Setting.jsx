@@ -1,3 +1,4 @@
+// src/pages/Setting.jsx
 import {
   AlertTriangle,
   Bell,
@@ -10,6 +11,7 @@ import {
   Lock,
   Mail,
   Moon,
+  Phone,
   ReceiptText,
   ShieldCheck,
   Smartphone,
@@ -22,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "../../store/useAuth.js";
 import api from "../../service/api.js";
+import PhoneRequiredModal from "../../components/PhoneRequiredModal.jsx";
 
 const FONT_DISPLAY = {
   fontFamily: "'Space Grotesk', ui-sans-serif, system-ui",
@@ -42,6 +45,7 @@ export default function Setting() {
   const profile = user?.data || user || {};
   const displayName = profile.username || profile.name || "Verified User";
   const displayEmail = profile.email || "No email on file";
+  const displayPhone = profile.phone || "";
   const userId = profile.id || profile._id;
   const initial = (displayName || displayEmail || "U")
     .slice(0, 1)
@@ -51,6 +55,9 @@ export default function Setting() {
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState(displayName);
   const [updatingUsername, setUpdatingUsername] = useState(false);
+
+  // Phone modal state
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
 
   // Password change state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -181,6 +188,8 @@ export default function Setting() {
     setDeleteConfirm("");
   };
 
+  const phoneMissing = !displayPhone;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       {/* Page header — title on the left, badge pinned to the right. */}
@@ -282,6 +291,41 @@ export default function Setting() {
                 >
                   <Copy size={12} />
                   Copy
+                </button>
+              </div>
+
+              {/* Phone row */}
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                <div className="flex items-center gap-1">
+                  <Phone size={14} className="text-brand-text" />
+                  {displayPhone ? (
+                    <span className="text-muted" style={FONT_MONO}>
+                      {displayPhone}
+                    </span>
+                  ) : (
+                    <span className="text-danger text-xs">
+                      No phone number on file
+                    </span>
+                  )}
+                </div>
+                {displayPhone && (
+                  <button
+                    onClick={() => handleCopy(displayPhone, "Phone")}
+                    className="flex items-center gap-1 text-xs text-muted transition-colors hover:text-heading"
+                  >
+                    <Copy size={12} />
+                    Copy
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowPhoneModal(true)}
+                  className={`rounded-lg px-2 py-1 text-xs font-semibold transition-colors ${
+                    phoneMissing
+                      ? "bg-danger text-white hover:opacity-90"
+                      : "border border-border text-muted hover:bg-surface hover:text-heading"
+                  }`}
+                >
+                  {displayPhone ? "Change" : "Add phone"}
                 </button>
               </div>
             </div>
@@ -569,6 +613,14 @@ export default function Setting() {
           </button>
         </div>
       </section>
+
+      {/* Phone modal */}
+      <PhoneRequiredModal
+        open={showPhoneModal}
+        onClose={() => setShowPhoneModal(false)}
+        onSuccess={() => setShowPhoneModal(false)}
+        dismissible
+      />
     </div>
   );
 }

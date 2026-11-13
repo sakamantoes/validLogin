@@ -14,6 +14,7 @@ import {
   Shield,
   Sparkles,
   Zap,
+  Phone,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import ThemeToggle from "../components/ThemeToggle";
@@ -37,6 +38,12 @@ const OCEAN = {
   purple: "var(--brand-text)",
 };
 
+const normalizePhone = (raw) => {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (/^234\d{10}$/.test(digits)) return "0" + digits.slice(3);
+  return digits;
+};
+
 const Register = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -47,6 +54,7 @@ const Register = () => {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -122,6 +130,14 @@ const Register = () => {
       newErrors.email = "Email is invalid";
     }
 
+    const normalizedPhone = normalizePhone(formData.phone);
+    if (!formData.phone) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^0\d{10}$/.test(normalizedPhone)) {
+      newErrors.phone =
+        "Enter a valid Nigerian phone number (11 digits, e.g. 08012345678)";
+    }
+
     if (!formData.password) {
       newErrors.password = "Password is required";
     } else if (formData.password.length < 8) {
@@ -149,7 +165,13 @@ const Register = () => {
 
     try {
       localStorage.removeItem("smswinner_token");
-      const response = await signup(formData);
+      const normalizedPhone = normalizePhone(formData.phone);
+      const response = await signup({
+        username: formData.username,
+        email: formData.email,
+        phone: normalizedPhone,
+        password: formData.password,
+      });
 
       if (response.status === 200 || response.status === 201) {
         if (response.data?.token) {
@@ -298,6 +320,39 @@ const Register = () => {
               {errors.email && (
                 <p className="mt-1.5 flex items-center gap-1 text-[12px] text-danger">
                   <XCircle size={12} /> {errors.email}
+                </p>
+              )}
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="mb-2 block text-[13px] font-medium text-heading">
+                Phone number <span className="text-danger">*</span>
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  maxLength={11}
+                  className={`w-full rounded-xl border bg-bg-subtle py-3 pl-10 pr-4 text-[14px] text-heading placeholder:text-muted transition-all duration-200 focus:outline-none focus:ring-2 ${
+                    errors.phone
+                      ? "border-danger focus:border-danger focus:ring-danger/20"
+                      : "border-border focus:border-brand focus:ring-brand/20"
+                  }`}
+                  placeholder="08012345678"
+                  inputMode="numeric"
+                />
+              </div>
+              {errors.phone ? (
+                <p className="mt-1.5 flex items-center gap-1 text-[12px] text-danger">
+                  <XCircle size={12} /> {errors.phone}
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[11.5px] text-muted">
+                  Required for deposits — Nigerian number, 11 digits.
                 </p>
               )}
             </div>

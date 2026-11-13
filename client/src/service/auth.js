@@ -43,6 +43,11 @@ export const signup = async (data) => {
   return res.data;
 };
 
+export const updatePhone = async (phone) => {
+  const res = await api.patch("api/auth/phone", { phone });
+  return res.data;
+};
+
 export const forgotPassword = async (data) => {
   const res = await api.post("api/auth/forgot/password", data);
   return res.data;

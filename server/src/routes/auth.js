@@ -10,6 +10,7 @@ import {
   googleVerified,
   updatePassword,
   updateUsername,
+  updatePhone,
   forgotPassword,
   resetPassword,
   logout,
@@ -46,6 +47,11 @@ router.put(
 );
 router.put("/update-username", authMiddleware, updateUsername);
 router.put("/update-password", authMiddleware, updatePassword);
+
+// Used by the PhoneRequiredModal when a user without a phone attempts
+// a C-TEX deposit. Saves the phone and resets ctexPhoneSynced so the
+// next deposit PATCHes the existing C-TEX customer instead of reusing it.
+router.patch("/phone", authMiddleware, updatePhone);
 
 router.post(
   "/forgot/password",

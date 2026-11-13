@@ -8,6 +8,21 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import { sendMail } from "../services/resend.js";
 
+/* =========================================================
+ * HELPERS
+ * ======================================================= */
+
+const normalizePhone = (raw) => {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (/^234\d{10}$/.test(digits)) return "0" + digits.slice(3);
+  return digits;
+};
+
+const isValidNigerianPhone = (phone) => /^0\d{10}$/.test(phone);
+
+/* =========================================================
+ * GOOGLE AUTH
+ * ======================================================= */
 
 const googleSetup = async (req, res, next) => {
   const { token } = req.body;
@@ -38,10 +53,11 @@ const googleSetup = async (req, res, next) => {
       email,
     });
 
-       if (user.role === "admin") {
-         res.statusCode = 400;
-         throw new Error("can't login with this portal");
-       }
+    // Guard: user exists and is admin
+    if (user && user.role === "admin") {
+      res.statusCode = 400;
+      throw new Error("can't login with this portal");
+    }
 
     // Create user if doesn't exist
     if (!user) {
@@ -49,6 +65,8 @@ const googleSetup = async (req, res, next) => {
         email,
         username: name,
         password: hashedpassword,
+        // phone is intentionally absent here — the user will be prompted
+        // to add one via the PhoneRequiredModal before their first C-TEX deposit
       });
     }
 
@@ -85,7 +103,7 @@ const googleVerified = async (req, res, next) => {
 
     let user = await User.findOne({ email });
 
-    if (user.role === "admin") {
+    if (user && user.role === "admin") {
       res.statusCode = 400;
       throw new Error("can't login with this portal");
     }
@@ -96,6 +114,7 @@ const googleVerified = async (req, res, next) => {
         email,
         username: name,
         password: hashedPassword,
+        // phone intentionally absent — user is prompted before C-TEX deposit
       });
     }
 
@@ -124,6 +143,10 @@ const googleVerified = async (req, res, next) => {
   }
 };
 
+/* =========================================================
+ * SESSION
+ * ======================================================= */
+
 const getAuthUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
@@ -141,6 +164,8 @@ const getAuthUser = async (req, res, next) => {
         email: user.email,
         username: user.username,
         role: user.role,
+        phone: user.phone || null,
+        walletBalance: user.walletBalance,
       },
     });
   } catch (error) {
@@ -148,23 +173,47 @@ const getAuthUser = async (req, res, next) => {
   }
 };
 
+/* =========================================================
+ * EMAIL AUTH — signup requires phone
+ * ======================================================= */
+
 const emailSignup = async (req, res, next) => {
-  const { email, password, username } = req.body;
+  const { email, password, username, phone } = req.body;
   try {
+    if (!email || !password || !username) {
+      res.statusCode = 400;
+      throw new Error("Email, password and username are required");
+    }
+
+    // Phone is mandatory at signup so C-TEX can be provisioned later
+    const normalizedPhone = normalizePhone(phone);
+    if (!isValidNigerianPhone(normalizedPhone)) {
+      res.statusCode = 400;
+      throw new Error(
+        "A valid Nigerian phone number is required (11 digits, e.g. 08012345678)",
+      );
+    }
+
     const isUser = await User.findOne({
-      $or: [{ email }, { username }],
+      $or: [
+        { email: email.toLowerCase() },
+        { username },
+        { phone: normalizedPhone },
+      ],
     });
 
     if (isUser) {
       res.statusCode = 400;
-      throw new Error("An account with htese details could not be created");
+      // Don't leak which field is taken; keep the generic message
+      throw new Error("An account with these details could not be created");
     }
 
     const hashedPassword = await hashPassword(password);
     const user = await User.create({
-      email: email,
+      email: email.toLowerCase(),
       username,
       password: hashedPassword,
+      phone: normalizedPhone,
     });
 
     const jwtToken = generateToken({
@@ -181,9 +230,19 @@ const emailSignup = async (req, res, next) => {
       message: "Registration successful",
       data: {
         token: jwtToken,
+        id: user._id,
+        email: user.email,
+        username: user.username,
+        phone: user.phone,
+        role: user.role,
       },
     });
   } catch (error) {
+    if (error?.code === 11000) {
+      res.statusCode = 409;
+      const field = Object.keys(error.keyPattern || {})[0] || "field";
+      return next(new Error(`${field} already in use`));
+    }
     next(error);
   }
 };
@@ -227,6 +286,7 @@ const emailLogin = async (req, res, next) => {
         email: user.email,
         username: user.username,
         role: user.role,
+        phone: user.phone || null,
         token: jwtToken,
       },
     });
@@ -234,6 +294,89 @@ const emailLogin = async (req, res, next) => {
     next(error);
   }
 };
+
+/* =========================================================
+ * UPDATE PHONE — used by PhoneRequiredModal on first C-TEX deposit
+ * =======================================================
+ * Called when a user without a phone attempts a C-TEX deposit.
+ * Saves the phone and resets ctexPhoneSynced so the next deposit
+ * PATCHes the existing C-TEX customer instead of reusing a stale
+ * customer record without a phone.
+ * ======================================================= */
+
+const updatePhone = async (req, res, next) => {
+  const { phone } = req.body;
+
+  try {
+    if (!req.user?._id) {
+      res.statusCode = 401;
+      throw new Error("Authentication required");
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!isValidNigerianPhone(normalizedPhone)) {
+      res.statusCode = 400;
+      throw new Error(
+        "Phone must be 11 digits starting with 0 (e.g. 08012345678)",
+      );
+    }
+
+    // Uniqueness check (exclude the current user)
+    const duplicate = await User.findOne({
+      phone: normalizedPhone,
+      _id: { $ne: req.user._id },
+    });
+
+    if (duplicate) {
+      res.statusCode = 409;
+      throw new Error(
+        "This phone number is already registered to another account",
+      );
+    }
+
+    // Load the current user to detect a phone change
+    const current = await User.findById(req.user._id).select("phone");
+    if (!current) {
+      res.statusCode = 404;
+      throw new Error("User not found");
+    }
+
+    const phoneChanged = current.phone !== normalizedPhone;
+
+    const update = {
+      $set: {
+        phone: normalizedPhone,
+        ...(phoneChanged ? { ctexPhoneSynced: false } : {}),
+      },
+    };
+
+    const updated = await User.findByIdAndUpdate(req.user._id, update, {
+      new: true,
+      runValidators: true,
+    }).select("-password -resetPasswordToken -resetPasswordTokenExpires");
+
+    res.status(200).json({
+      success: true,
+      message: "Phone number updated successfully",
+      data: {
+        id: updated._id,
+        username: updated.username,
+        email: updated.email,
+        phone: updated.phone,
+      },
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      res.statusCode = 409;
+      return next(new Error("This phone number is already registered"));
+    }
+    next(error);
+  }
+};
+
+/* =========================================================
+ * ADMIN USER MANAGEMENT
+ * ======================================================= */
 
 const getAllUser = async (req, res, next) => {
   try {
@@ -303,6 +446,10 @@ const activateUser = async (req, res, next) => {
   }
 };
 
+/* =========================================================
+ * PROFILE UPDATES
+ * ======================================================= */
+
 const updateUsername = async (req, res, next) => {
   const { username } = req.body;
   try {
@@ -357,6 +504,10 @@ const updatePassword = async (req, res, next) => {
   }
 };
 
+/* =========================================================
+ * LOGOUT
+ * ======================================================= */
+
 const logout = async (req, res, next) => {
   try {
     res.clearCookie("smsWinnerToken", {
@@ -372,6 +523,10 @@ const logout = async (req, res, next) => {
     next(error);
   }
 };
+
+/* =========================================================
+ * PASSWORD RESET
+ * ======================================================= */
 
 const forgotPassword = async (req, res, next) => {
   try {
@@ -479,7 +634,10 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
-// EDIT USER WALLET BALANCE
+/* =========================================================
+ * ADMIN — EDIT USER WALLET
+ * ======================================================= */
+
 const editUserWallet = async (req, res, next) => {
   const { id } = req.params;
   const { walletBalance } = req.body;
@@ -529,6 +687,10 @@ const editUserWallet = async (req, res, next) => {
   }
 };
 
+/* =========================================================
+ * EXPORTS
+ * ======================================================= */
+
 export {
   googleSetup,
   googleVerified,
@@ -540,6 +702,7 @@ export {
   activateUser,
   updatePassword,
   updateUsername,
+  updatePhone,
   logout,
   forgotPassword,
   resetPassword,
