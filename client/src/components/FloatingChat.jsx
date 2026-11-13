@@ -291,10 +291,8 @@ const FloatingChat = () => {
                 rounded-3xl
                 overflow-hidden
                 border
-                border-blue-500/30
-                bg-gradient-to-br
-                from-gray-900
-                to-black
+                border-border
+                bg-surface
                 shadow-2xl
               "
             >
@@ -334,7 +332,7 @@ const FloatingChat = () => {
 
               {/* Content */}
               <div className="p-6">
-                <p className="text-gray-300 text-center leading-relaxed mb-4">
+                <p className="text-body text-center leading-relaxed mb-4">
                   👋 Welcome to Wave Verify Support!
                   <br />
                   How would you like to connect with us? Click the button below 👇
@@ -374,7 +372,7 @@ const FloatingChat = () => {
                         Telegram
                       </h4>
                       <p
-                        className="text-gray-400 text-sm"
+                        className="text-muted text-sm"
                         style={FONT_MONO}
                       >
                         Instant messaging & updates
@@ -387,31 +385,31 @@ const FloatingChat = () => {
                 </div>
 
                 {/* Features */}
-                <div className="mt-6 pt-6 border-t border-white/10">
+                <div className="mt-6 pt-6 border-t border-border">
                   <div className="grid grid-cols-2 gap-3">
                     <div
-                      className="flex items-center gap-2 text-xs text-gray-400"
+                      className="flex items-center gap-2 text-xs text-muted"
                       style={FONT_MONO}
                     >
                       <span className="text-green-500">✓</span>
                       24/7 Availability
                     </div>
                     <div
-                      className="flex items-center gap-2 text-xs text-gray-400"
+                      className="flex items-center gap-2 text-xs text-muted"
                       style={FONT_MONO}
                     >
                       <span className="text-green-500">✓</span>
                       Instant Responses
                     </div>
                     <div
-                      className="flex items-center gap-2 text-xs text-gray-400"
+                      className="flex items-center gap-2 text-xs text-muted"
                       style={FONT_MONO}
                     >
                       <span className="text-green-500">✓</span>
                       Secure Chat
                     </div>
                     <div
-                      className="flex items-center gap-2 text-xs text-gray-400"
+                      className="flex items-center gap-2 text-xs text-muted"
                       style={FONT_MONO}
                     >
                       <span className="text-green-500">✓</span>
@@ -421,7 +419,7 @@ const FloatingChat = () => {
                 </div>
 
                 <p
-                  className="text-xs text-gray-500 text-center mt-5"
+                  className="text-xs text-muted text-center mt-5"
                   style={FONT_MONO}
                 >
                   Your privacy is important. All chats are encrypted and secure.

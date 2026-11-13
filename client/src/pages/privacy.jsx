@@ -22,14 +22,14 @@ const FONT_MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" };
 
 const Privacy = () => {
   return (
-    <div className="landing-page relative min-h-screen overflow-hidden bg-white text-[#1B1030]">
+    <div className="landing-page relative min-h-screen overflow-hidden bg-bg text-heading">
       <ThemeToggle className="fixed right-4 top-4 z-50" />
       {/* Background grid — same as homepage hero */}
       <div
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.05]"
         style={{
           backgroundImage:
-            "linear-gradient(#7C3AED 1px, transparent 1px), linear-gradient(90deg, #7C3AED 1px, transparent 1px)",
+            "linear-gradient(var(--brand) 1px, transparent 1px), linear-gradient(90deg, var(--brand) 1px, transparent 1px)",
           backgroundSize: "44px 44px",
         }}
       />
@@ -37,19 +37,19 @@ const Privacy = () => {
       <div
         className="pointer-events-none fixed -top-40 left-1/2 z-0 h-[520px] w-[900px] -translate-x-1/2 rounded-full opacity-20 blur-[110px]"
         style={{
-          background: "radial-gradient(closest-side, #A855F7, transparent)",
+          background: "radial-gradient(closest-side, var(--brand), transparent)",
         }}
       />
 
       {/* Navigation — same language as homepage Navbar */}
-      <header className="sticky top-0 z-50 border-b border-[#E4D9F5] bg-white/85 backdrop-blur">
+      <header className="sticky top-0 z-50 border-b border-border bg-bg/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link to="/" className="flex items-center gap-2.5">
             <img src={imageObject.Logo} className='h-[50px] w-[150px] rounded-sm' />
           </Link>
           <Link
             to="/"
-            className="flex items-center gap-2 text-[14px] text-[#6E6280] transition-colors hover:text-[#1B1030]"
+            className="flex items-center gap-2 text-[14px] text-muted transition-colors hover:text-heading"
           >
             <Home className="h-4 w-4" />
             Back to Home
@@ -61,19 +61,19 @@ const Privacy = () => {
       <main className="relative z-10 mx-auto max-w-4xl px-6 py-16 md:py-24">
         {/* Hero header */}
         <div className="mb-12 text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#E4D9F5] bg-[#F7F3FD] px-3 py-1.5">
-            <Lock className="h-3.5 w-3.5 text-[#7C3AED]" />
-            <span style={FONT_MONO} className="text-[12px] text-[#6E6280]">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-bg-subtle px-3 py-1.5">
+            <Lock className="h-3.5 w-3.5 text-brand-text" />
+            <span style={FONT_MONO} className="text-[12px] text-muted">
               privacy policy
             </span>
           </div>
           <h1
             style={FONT_DISPLAY}
-            className="mb-4 text-[36px] font-semibold leading-tight tracking-tight text-[#1B1030] sm:text-[44px] md:text-[48px]"
+            className="mb-4 text-[36px] font-semibold leading-tight tracking-tight text-heading sm:text-[44px] md:text-[48px]"
           >
-            Privacy <span className="text-[#7C3AED]">Policy</span>
+            Privacy <span className="text-brand-text">Policy</span>
           </h1>
-          <p style={FONT_MONO} className="text-[12.5px] text-[#6E6280]">
+          <p style={FONT_MONO} className="text-[12.5px] text-muted">
             Last updated: September 1, 2026
           </p>
         </div>
@@ -101,26 +101,26 @@ const Privacy = () => {
             <CheckList
               items={[
                 <>
-                  <strong className="text-[#1B1030]">
+                  <strong className="text-heading">
                     Personal information:
                   </strong>{" "}
                   Name, email address, phone number, and payment information
                   when you create an account or make a purchase.
                 </>,
                 <>
-                  <strong className="text-[#1B1030]">Usage data:</strong>{" "}
+                  <strong className="text-heading">Usage data:</strong>{" "}
                   Information about how you interact with our platform,
                   including pages visited, features used, and time spent.
                 </>,
                 <>
-                  <strong className="text-[#1B1030]">
+                  <strong className="text-heading">
                     Device information:
                   </strong>{" "}
                   IP address, browser type, operating system, and device
                   identifiers.
                 </>,
                 <>
-                  <strong className="text-[#1B1030]">Cookies:</strong> We use
+                  <strong className="text-heading">Cookies:</strong> We use
                   cookies and similar tracking technologies to enhance your
                   experience and analyze usage patterns.
                 </>,
@@ -254,11 +254,11 @@ const Privacy = () => {
               If you have any questions, concerns, or requests regarding this
               Privacy Policy, please contact us at:
             </p>
-            <div className="mt-4 rounded-md border border-[#E4D9F5] bg-[#F7F3FD] p-4">
-              <p style={FONT_MONO} className="text-[13px] text-[#1B1030]">
+            <div className="mt-4 rounded-md border border-border bg-bg-subtle p-4">
+              <p style={FONT_MONO} className="text-[13px] text-heading">
                 📧 privacy@waveverify.com
               </p>
-              <p style={FONT_MONO} className="mt-1 text-[13px] text-[#1B1030]">
+              <p style={FONT_MONO} className="mt-1 text-[13px] text-heading">
                 🌐 www.waveverify.com
               </p>
             </div>
@@ -268,7 +268,7 @@ const Privacy = () => {
           <div className="pt-6 text-center">
             <Link
               to="/"
-              className="inline-flex items-center gap-2 rounded-md bg-[#7C3AED] px-6 py-3 text-[14px] font-medium text-white transition-colors hover:bg-[#6D28D9]"
+              className="inline-flex items-center gap-2 rounded-md bg-brand px-6 py-3 text-[14px] font-medium text-on-brand transition-colors hover:bg-brand-hover"
             >
               Return to Home
               <ArrowRight className="h-4 w-4" />
@@ -278,21 +278,21 @@ const Privacy = () => {
       </main>
 
       {/* Footer — same language as homepage footer */}
-      <footer className="relative z-10 mt-8 border-t border-[#E4D9F5] bg-white px-6 py-8">
+      <footer className="relative z-10 mt-8 border-t border-border bg-bg px-6 py-8">
         <div className="mx-auto max-w-4xl text-center">
-          <p className="text-[12.5px] text-[#6E6280]">
+          <p className="text-[12.5px] text-muted">
             © {new Date().getFullYear()} DigiTools. All rights reserved.
           </p>
           <div className="mt-3 flex justify-center gap-6">
             <Link
               to="/terms"
-              className="text-[13px] text-[#6E6280] transition-colors hover:text-[#1B1030]"
+              className="text-[13px] text-muted transition-colors hover:text-heading"
             >
               Terms
             </Link>
             <Link
               to="/Privacy"
-              className="text-[13px] text-[#6E6280] transition-colors hover:text-[#1B1030]"
+              className="text-[13px] text-muted transition-colors hover:text-heading"
             >
               Privacy
             </Link>
@@ -314,14 +314,14 @@ const Privacy = () => {
 function Section({ icon: Icon, iconTone = "purple", title, children }) {
   const toneClasses =
     iconTone === "green"
-      ? "bg-[#16A34A]/10 text-[#16A34A]"
-      : "bg-[#7C3AED]/10 text-[#7C3AED]";
+      ? "bg-success-soft text-success"
+      : "bg-brand-soft text-brand-text";
 
   return (
-    <section className="rounded-xl border border-[#E4D9F5] bg-white p-6 shadow-[0_24px_60px_-24px_rgba(76,29,149,0.1)] md:p-8">
+    <section className="rounded-xl border border-border bg-surface p-6 shadow-card md:p-8">
       <h2
         style={FONT_DISPLAY}
-        className="mb-4 flex items-center gap-3 text-[18px] font-semibold text-[#1B1030] md:text-[20px]"
+        className="mb-4 flex items-center gap-3 text-[18px] font-semibold text-heading md:text-[20px]"
       >
         <span
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${toneClasses}`}
@@ -330,7 +330,7 @@ function Section({ icon: Icon, iconTone = "purple", title, children }) {
         </span>
         {title}
       </h2>
-      <div className="text-[14px] leading-relaxed text-[#6E6280] md:text-[14.5px]">
+      <div className="text-[14px] leading-relaxed text-muted md:text-[14.5px]">
         {children}
       </div>
     </section>
@@ -345,8 +345,8 @@ function CheckList({ items }) {
     <ul className="space-y-3">
       {items.map((item, i) => (
         <li key={i} className="flex items-start gap-3">
-          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#16A34A]" />
-          <span className="text-[14px] leading-relaxed text-[#6E6280] md:text-[14.5px]">
+          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+          <span className="text-[14px] leading-relaxed text-muted md:text-[14.5px]">
             {item}
           </span>
         </li>

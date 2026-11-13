@@ -238,7 +238,7 @@
   font-size: 18px;
   font-weight: 400;
   line-height: 32px;
-  color: #ffffffb3;
+  color: var(--text-body);
 }
 
 .mono-font {

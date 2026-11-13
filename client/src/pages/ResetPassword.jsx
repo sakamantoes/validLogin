@@ -110,14 +110,14 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="landing-page relative min-h-screen overflow-hidden bg-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="landing-page relative min-h-screen overflow-hidden bg-bg text-body flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <ThemeToggle className="fixed right-4 top-4 z-50" />
       {/* Background grid — same as homepage hero */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.05]"
         style={{
           backgroundImage:
-            "linear-gradient(#7C3AED 1px, transparent 1px), linear-gradient(90deg, #7C3AED 1px, transparent 1px)",
+            "linear-gradient(var(--brand) 1px, transparent 1px), linear-gradient(90deg, var(--brand) 1px, transparent 1px)",
           backgroundSize: "44px 44px",
         }}
       />
@@ -128,7 +128,7 @@ const ResetPassword = () => {
         transition={{ duration: 1.5 }}
         className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full blur-[110px]"
         style={{
-          background: "radial-gradient(closest-side, #A855F7, transparent)",
+          background: "radial-gradient(closest-side, var(--brand), transparent)",
         }}
       />
 
@@ -150,11 +150,11 @@ const ResetPassword = () => {
                   </motion.div>
           <h1
             style={FONT_DISPLAY}
-            className="text-[32px] font-semibold leading-tight tracking-tight text-[#1B1030] sm:text-[36px]"
+            className="text-[32px] font-semibold leading-tight tracking-tight text-heading sm:text-[36px]"
           >
             Set a new password
           </h1>
-          <p className="mt-2 text-[14px] text-[#6E6280]">
+          <p className="mt-2 text-[14px] text-muted">
             Choose a strong password you haven't used before.
           </p>
         </div>
@@ -164,25 +164,25 @@ const ResetPassword = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="rounded-xl border border-[#E4D9F5] bg-white p-7 shadow-[0_24px_60px_-24px_rgba(76,29,149,0.15)] sm:p-8"
+          className="rounded-xl border border-border bg-surface p-7 shadow-card sm:p-8"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* New password */}
             <div>
-              <label className="mb-2 block text-[13px] font-medium text-[#1B1030]">
+              <label className="mb-2 block text-[13px] font-medium text-heading">
                 New password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-[#9B948A]" />
+                <Lock className="absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted" />
                 <input
                   type={showNewPassword ? "text" : "password"}
                   name="newPassword"
                   value={formData.newPassword}
                   onChange={handleChange}
-                  className={`w-full rounded-md border bg-[#F7F3FD] py-3 pl-10 pr-12 text-[14px] text-[#1B1030] placeholder:text-[#9B948A] transition-colors focus:bg-white focus:outline-none ${
+                  className={`w-full rounded-md border bg-bg-subtle py-3 pl-10 pr-12 text-[14px] text-heading placeholder:text-muted transition-colors focus:bg-surface focus:outline-none ${
                     error
-                      ? "border-[#DC2626]"
-                      : "border-[#E4D9F5] focus:border-[#7C3AED]"
+                      ? "border-danger"
+                      : "border-border focus:border-brand"
                   }`}
                   placeholder="Enter new password"
                 />
@@ -192,7 +192,7 @@ const ResetPassword = () => {
                   aria-label={
                     showNewPassword ? "Hide password" : "Show password"
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9B948A] transition-colors hover:text-[#1B1030]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-heading"
                 >
                   {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -201,20 +201,20 @@ const ResetPassword = () => {
 
             {/* Confirm password */}
             <div>
-              <label className="mb-2 block text-[13px] font-medium text-[#1B1030]">
+              <label className="mb-2 block text-[13px] font-medium text-heading">
                 Confirm password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-[#9B948A]" />
+                <Lock className="absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted" />
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className={`w-full rounded-md border bg-[#F7F3FD] py-3 pl-10 pr-12 text-[14px] text-[#1B1030] placeholder:text-[#9B948A] transition-colors focus:bg-white focus:outline-none ${
+                  className={`w-full rounded-md border bg-bg-subtle py-3 pl-10 pr-12 text-[14px] text-heading placeholder:text-muted transition-colors focus:bg-surface focus:outline-none ${
                     error
-                      ? "border-[#DC2626]"
-                      : "border-[#E4D9F5] focus:border-[#7C3AED]"
+                      ? "border-danger"
+                      : "border-border focus:border-brand"
                   }`}
                   placeholder="Confirm new password"
                 />
@@ -224,7 +224,7 @@ const ResetPassword = () => {
                   aria-label={
                     showConfirmPassword ? "Hide password" : "Show password"
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9B948A] transition-colors hover:text-[#1B1030]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-heading"
                 >
                   {showConfirmPassword ? (
                     <EyeOff size={18} />
@@ -236,16 +236,16 @@ const ResetPassword = () => {
             </div>
 
             {error && (
-              <div className="rounded-md border border-[#DC2626]/20 bg-[#DC2626]/5 p-3">
-                <p className="flex items-center justify-center gap-1.5 text-center text-[12.5px] text-[#DC2626]">
+              <div className="rounded-md border border-danger/20 bg-danger-soft p-3">
+                <p className="flex items-center justify-center gap-1.5 text-center text-[12.5px] text-danger">
                   <XCircle size={13} /> {error}
                 </p>
               </div>
             )}
 
             {updated && (
-              <div className="rounded-md border border-[#16A34A]/20 bg-[#16A34A]/5 p-3">
-                <p className="flex items-center justify-center gap-2 text-center text-[12.5px] text-[#16A34A]">
+              <div className="rounded-md border border-success/20 bg-success-soft p-3">
+                <p className="flex items-center justify-center gap-2 text-center text-[12.5px] text-success">
                   <CheckCircle2 size={14} />
                   Password updated. Redirecting to login...
                 </p>
@@ -257,7 +257,7 @@ const ResetPassword = () => {
               disabled={loading || updated}
               whileHover={{ scale: loading || updated ? 1 : 1.02 }}
               whileTap={{ scale: loading || updated ? 1 : 0.98 }}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-[#7C3AED] py-3 text-[14px] font-medium text-white transition-colors hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-brand py-3 text-[14px] font-medium text-on-brand transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -272,12 +272,12 @@ const ResetPassword = () => {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#E4D9F5]" />
+              <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-[12px]">
               <span
                 style={FONT_MONO}
-                className="bg-white px-2 tracking-wider text-[#6E6280]"
+                className="bg-surface px-2 tracking-wider text-muted"
               >
                 OR
               </span>
@@ -287,7 +287,7 @@ const ResetPassword = () => {
           {/* Back to login */}
           <Link
             to="/login"
-            className="flex items-center justify-center gap-2 text-[13.5px] font-medium text-[#6E6280] transition-colors hover:text-[#7C3AED]"
+            className="flex items-center justify-center gap-2 text-[13.5px] font-medium text-muted transition-colors hover:text-brand-text"
           >
             <ArrowLeft size={16} />
             Back to login

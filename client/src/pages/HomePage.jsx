@@ -22,6 +22,7 @@ import {
   Search, Wallet, Code2, Signal, Clock, MapPin, CheckCircle2,
 } from "lucide-react";
 import imageObject from "../utils/image";
+import ThemeToggle from "../components/ThemeToggle";
 
 const F = { fontFamily: "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif" };
 const MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" };
@@ -29,13 +30,13 @@ const MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" };
 /* ------------------------------ palette ------------------------------ */
 const ACCENT = "#2563EB";
 const ACCENT_2 = "#60A5FA";
-const D_BG = "#05070D";
-const D_SURFACE = "#0A0E18";
-const D_SURFACE_2 = "#0F1522";
-const D_BORDER = "rgba(255,255,255,0.08)";
-const D_TEXT = "#F3F6FB";
-const D_TEXT_SOFT = "#9AA7BD";
-const D_TEXT_DIM = "#5F6B80";
+const D_BG = "var(--bg)";
+const D_SURFACE = "var(--surface)";
+const D_SURFACE_2 = "var(--surface-raised)";
+const D_BORDER = "var(--border)";
+const D_TEXT = "var(--text-heading)";
+const D_TEXT_SOFT = "var(--text-body)";
+const D_TEXT_DIM = "var(--text-muted)";
 /* ORANGE PRESET (matches the reference screenshot exactly):
    ACCENT "#F0561D" · ACCENT_2 "#FF8A4C" · D_BG "#0B0807" · D_SURFACE "#120D0B"
    D_SURFACE_2 "#17110F" · D_TEXT "#F5EFEA" · D_TEXT_SOFT "#A89E97" · D_TEXT_DIM "#6F655F" */
@@ -192,12 +193,12 @@ function Navbar() {
     return () => window.removeEventListener("scroll", f);
   }, []);
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-xl transition-all h-[100px]" style={{ background: sc ? "rgba(5,7,13,0.85)" : "rgba(5,7,13,0.5)", borderBottom: `1px solid ${sc ? D_BORDER : "transparent"}` }}>
+    <header className="sticky top-0 z-50 backdrop-blur-xl transition-all h-[100px]" style={{ background: `color-mix(in srgb, ${D_BG} ${sc ? "85%" : "50%"}, transparent)`, borderBottom: `1px solid ${sc ? D_BORDER : "transparent"}` }}>
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 md:grid md:grid-cols-[1fr_auto_1fr]">
         <Logo />
         <nav style={F} className="hidden items-center gap-8 text-[13.5px] md:flex">
           <div className="relative" onMouseEnter={() => setProd(true)} onMouseLeave={() => setProd(false)}>
-            <button className="flex items-center gap-1 font-medium transition-colors hover:text-white" style={{ color: D_TEXT_SOFT }}>
+            <button className="flex items-center gap-1 font-medium transition-colors hover:text-brand-text" style={{ color: D_TEXT_SOFT }}>
               Products <ChevronDown className={`h-3.5 w-3.5 transition-transform ${prod ? "rotate-180" : ""}`} />
             </button>
             <AnimatePresence>
@@ -205,23 +206,27 @@ function Navbar() {
                 <motion.ul initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15 }}
                   className="absolute left-0 top-full w-52 rounded-2xl border p-1.5 shadow-xl" style={{ borderColor: D_BORDER, background: D_SURFACE }}>
                   {PRODUCTS.map((p) => (
-                    <li key={p.label}><a href={p.href} className="block rounded-xl px-3 py-2 text-[13px] font-medium transition-colors hover:bg-white/5" style={{ color: D_TEXT }}>{p.label}</a></li>
+                    <li key={p.label}><a href={p.href} className="block rounded-xl px-3 py-2 text-[13px] font-medium transition-colors hover:bg-brand-soft" style={{ color: D_TEXT }}>{p.label}</a></li>
                   ))}
                 </motion.ul>
               )}
             </AnimatePresence>
           </div>
-          {NAV.map((l) => <a key={l.label} href={l.href} className="font-medium transition-colors hover:text-white" style={{ color: D_TEXT_SOFT }}>{l.label}</a>)}
+          {NAV.map((l) => <a key={l.label} href={l.href} className="font-medium transition-colors hover:text-brand-text" style={{ color: D_TEXT_SOFT }}>{l.label}</a>)}
         </nav>
         <div style={F} className="hidden items-center justify-end gap-5 md:flex">
-          <Link to="/login" className="text-[13.5px] font-medium transition-colors hover:text-white" style={{ color: D_TEXT_SOFT }}>Sign in</Link>
+          <ThemeToggle />
+          <Link to="/login" className="text-[13.5px] font-medium transition-colors hover:text-brand-text" style={{ color: D_TEXT_SOFT }}>Sign in</Link>
           <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
             <Link to="/signup" className="rounded-full px-5 py-2 text-[13px] font-semibold text-white" style={{ background: ACCENT }}>Get Started</Link>
           </motion.div>
         </div>
-        <button className="md:hidden" onClick={() => setOpen((v) => !v)} aria-label="Toggle menu" style={{ color: D_TEXT }}>
-          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-3 md:hidden">
+          <ThemeToggle />
+          <button onClick={() => setOpen((v) => !v)} aria-label="Toggle menu" style={{ color: D_TEXT }}>
+            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
       <AnimatePresence>
         {open && (
@@ -352,7 +357,7 @@ function Hero() {
               </Link>
             </motion.div>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-              <a href="#coverage" className="block rounded-2xl border px-6 py-3.5 text-[14px] font-semibold transition-colors hover:bg-white/5" style={{ borderColor: D_BORDER, color: D_TEXT }}>View Coverage</a>
+              <a href="#coverage" className="block rounded-2xl border px-6 py-3.5 text-[14px] font-semibold transition-colors hover:bg-brand-soft" style={{ borderColor: D_BORDER, color: D_TEXT }}>View Coverage</a>
             </motion.div>
           </motion.div>
           <motion.ul initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.55 }} className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[12px]" style={{ color: D_TEXT_DIM }}>
@@ -437,7 +442,7 @@ function Services() {
               const o = open === i;
               return (
                 <div key={title} style={{ borderColor: D_BORDER }}>
-                  <button onClick={() => setOpen(o ? -1 : i)} aria-expanded={o} className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.03] sm:px-6">
+                  <button onClick={() => setOpen(o ? -1 : i)} aria-expanded={o} className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-brand-soft sm:px-6">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border" style={{ borderColor: A("44"), background: A("1A") }}><Icon className="h-[18px] w-[18px]" style={{ color: ACCENT_2 }} /></span>
                     <span className="min-w-0 flex-1"><span className="block text-[15px] font-bold" style={{ color: D_TEXT }}>{title}</span><span className="block truncate text-[12.5px]" style={{ color: D_TEXT_SOFT }}>{desc}</span></span>
                     <motion.span animate={{ rotate: o ? 90 : 0 }} style={{ color: D_TEXT_DIM }}><ArrowUpRight className="h-4 w-4" /></motion.span>
@@ -742,7 +747,7 @@ function CTA() {
           </div>
           <div className="relative flex flex-wrap items-center gap-3 md:justify-end">
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-              <Link to="/signup" className="block rounded-2xl px-6 py-3.5 text-[14px] font-bold text-white" style={{ background: D_BG }}>Create free account</Link>
+              <Link to="/signup" className="block rounded-2xl px-6 py-3.5 text-[14px] font-bold" style={{ background: D_BG, color: D_TEXT }}>Create free account</Link>
             </motion.div>
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
               <a href="#coverage" className="block rounded-2xl border border-white/50 px-6 py-3.5 text-[14px] font-bold text-white">View Coverage</a>
@@ -767,13 +772,13 @@ function Footer() {
         {cols.map((c) => (
           <div key={c.t}><h4 className="text-[11px] font-bold tracking-[0.2em]" style={{ color: D_TEXT_DIM }}>{c.t.toUpperCase()}</h4>
             <ul className="mt-4 space-y-3">{c.l.map(([l, h]) => (
-              <li key={l}>{h.startsWith("#") ? <a href={h} className="text-[13.5px] transition-colors hover:text-white" style={{ color: D_TEXT_SOFT }}>{l}</a> : <Link to={h} className="text-[13.5px] transition-colors hover:text-white" style={{ color: D_TEXT_SOFT }}>{l}</Link>}</li>
+              <li key={l}>{h.startsWith("#") ? <a href={h} className="text-[13.5px] transition-colors hover:text-brand-text" style={{ color: D_TEXT_SOFT }}>{l}</a> : <Link to={h} className="text-[13.5px] transition-colors hover:text-brand-text" style={{ color: D_TEXT_SOFT }}>{l}</Link>}</li>
             ))}</ul></div>
         ))}
       </div>
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 border-t px-5 py-5 text-[12.5px] sm:flex-row" style={{ color: D_TEXT_DIM, borderColor: D_BORDER }}>
         <span>© {new Date().getFullYear()} VALIDLOGIN. All rights reserved.</span>
-        <span className="flex gap-5"><Link to="/privacy" className="hover:text-white">Privacy</Link><Link to="/terms" className="hover:text-white">Terms</Link></span>
+        <span className="flex gap-5"><Link to="/privacy" className="hover:text-brand-text">Privacy</Link><Link to="/terms" className="hover:text-brand-text">Terms</Link></span>
       </div>
     </footer>
   );
@@ -786,7 +791,7 @@ export default function ValidLoginMarketplace() {
   const bar = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
   return (
     <MotionConfig reducedMotion="user">
-      <div style={{ ...F, scrollBehavior: "smooth", background: D_BG }}>
+      <div style={{ ...F, scrollBehavior: "smooth", background: D_BG, color: D_TEXT }}>
         <motion.div className="fixed inset-x-0 top-0 z-[60] h-[2px] origin-left" style={{ scaleX: bar, background: ACCENT_2 }} />
         <Navbar />
         <Hero />
