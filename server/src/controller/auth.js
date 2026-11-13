@@ -7,7 +7,8 @@ import { env } from "../config/constant.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import { sendMail } from "../services/resend.js";
-
+import { generateUniqueNigerianPhone } from "../utils/nigerianPhone.js";
+import { createUserWithPhone } from "../utils/createUserWithPhone.js";
 
 const googleSetup = async (req, res, next) => {
   const { token } = req.body;
@@ -34,18 +35,16 @@ const googleSetup = async (req, res, next) => {
 
     const hashedpassword = await hashPassword(sub);
 
-    let user = await User.findOne({
-      email,
-    });
+    let user = await User.findOne({ email });
 
-       if (user.role === "admin") {
-         res.statusCode = 400;
-         throw new Error("can't login with this portal");
-       }
+    if (user && user.role === "admin") {
+      res.statusCode = 400;
+      throw new Error("can't login with this portal");
+    }
 
     // Create user if doesn't exist
     if (!user) {
-      user = await User.create({
+      user = await createUserWithPhone({
         email,
         username: name,
         password: hashedpassword,
@@ -85,14 +84,14 @@ const googleVerified = async (req, res, next) => {
 
     let user = await User.findOne({ email });
 
-    if (user.role === "admin") {
+    if (user && user.role === "admin") {
       res.statusCode = 400;
       throw new Error("can't login with this portal");
     }
 
     if (!user) {
       const hashedPassword = await hashPassword(googleId); // use googleId as placeholder password
-      user = await User.create({
+      user = await createUserWithPhone({
         email,
         username: name,
         password: hashedPassword,
@@ -161,8 +160,10 @@ const emailSignup = async (req, res, next) => {
     }
 
     const hashedPassword = await hashPassword(password);
-    const user = await User.create({
-      email: email,
+
+    // Create user with a unique generated Nigerian phone number
+    const user = await createUserWithPhone({
+      email,
       username,
       password: hashedPassword,
     });
