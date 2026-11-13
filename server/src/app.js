@@ -27,9 +27,7 @@ app.use(morgan("dev"));
 app.use(
   express.json({
     verify: (req, _res, buf) => {
-      if (req.originalUrl.startsWith("/api/payment")) {
-        req.rawBody = buf.toString("utf8");
-      }
+      if (req.originalUrl.startsWith("/api/payment")) req.rawBody = buf;
     },
   }),
 );
