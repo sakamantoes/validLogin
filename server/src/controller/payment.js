@@ -516,21 +516,26 @@ const initializeCtexPayment = async (req, res, next) => {
       .toString("hex")
       .toUpperCase()}`;
 
-    const frontendUrl = env.frontend_url || "https://www.validlogin.online";
+    // ⚠️ REQUIRED: ctex needs a customerId that you must obtain from
+    // their platform (or create via their customer API if one exists).
+    // Replace `user.ctexCustomerId` with however you store it.
+    const customerId = user.ctexCustomerId || user._id.toString();
+
+    if (!customerId) {
+      res.statusCode = 400;
+      throw new Error(
+        "C-TEX customerId is required. Please contact support to set up your C-TEX customer profile.",
+      );
+    }
 
     const payload = {
       amount: amountKobo,
       currency: "NGN",
+      customerId,
       reference: idempotencyKey,
       description: `Wallet topup for ${user.email}`,
-      // Where ctex sends the user after checkout. paymentReference isn't known
-      // yet, so the frontend recovers it from sessionStorage (returned=1).
-      callbackUrl: `${frontendUrl}/f/fund-account?paymentMethod=ctex&returned=1&amount=${numericAmount}`,
-      metadata: {
-        userId: String(user._id),
-        email: user.email,
-      },
       // paymentMethod deliberately not set — hosted checkout
+      // If hosted checkout fails, try adding: paymentMethod: "ACCOUNT_TRANSFER"
     };
 
     const response = await axios.post(
@@ -593,12 +598,13 @@ const initializeCtexPayment = async (req, res, next) => {
       },
     });
   } catch (error) {
-    const ctexMessage = error.response?.data?.message;
-    if (ctexMessage) {
-      console.log("ctex init error:", {
-        status: error.response.status,
-        message: ctexMessage,
-      });
+    // Print the FULL ctex response so you can see exactly which field failed
+    if (error.response?.data) {
+      console.log(
+        "ctex init error (full response):",
+        JSON.stringify(error.response.data, null, 2),
+      );
+      console.log("ctex init status:", error.response.status);
     } else {
       console.log("ctex init error:", error.message);
     }
