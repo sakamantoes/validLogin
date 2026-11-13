@@ -80,7 +80,7 @@ export default function CtexPayment({ amount, onBack }) {
       // Backend: { success, data: { referenceId, amount, currency, status, checkoutUrl } }
       const res = await initializeCtexPayment({
         amount: numericAmount,
-        paymentMethod: "ctex", // required by the shared deposit validator
+        paymentMethod: "CTEX", // required by the shared deposit validator
       });
       const payload = res?.data ?? {};
       const checkoutUrl =
