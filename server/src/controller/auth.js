@@ -7,6 +7,8 @@ import { env } from "../config/constant.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import { sendMail } from "../services/resend.js";
+import { generateUniqueNigerianPhone } from "../utils/nigerianPhone.js";
+import { createUserWithPhone } from "../utils/createUserWithPhone.js";
 
 /* =========================================================
  * HELPERS
@@ -49,9 +51,7 @@ const googleSetup = async (req, res, next) => {
 
     const hashedpassword = await hashPassword(sub);
 
-    let user = await User.findOne({
-      email,
-    });
+    let user = await User.findOne({ email });
 
     // Guard: user exists and is admin
     if (user && user.role === "admin") {
@@ -61,7 +61,7 @@ const googleSetup = async (req, res, next) => {
 
     // Create user if doesn't exist
     if (!user) {
-      user = await User.create({
+      user = await createUserWithPhone({
         email,
         username: name,
         password: hashedpassword,
@@ -110,7 +110,7 @@ const googleVerified = async (req, res, next) => {
 
     if (!user) {
       const hashedPassword = await hashPassword(googleId); // use googleId as placeholder password
-      user = await User.create({
+      user = await createUserWithPhone({
         email,
         username: name,
         password: hashedPassword,
@@ -209,7 +209,9 @@ const emailSignup = async (req, res, next) => {
     }
 
     const hashedPassword = await hashPassword(password);
-    const user = await User.create({
+
+    // Create user with the phone number the user provided
+    const user = await createUserWithPhone({
       email: email.toLowerCase(),
       username,
       password: hashedPassword,

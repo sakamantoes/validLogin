@@ -16,10 +16,17 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    phone: {
+      type: String,
+      unique: true,
+      sparse: true, // allows multiple docs without phone, but enforces uniqueness when present
+      index: true,
+      match: [/^0\d{10}$/, "Phone must be 11 digits starting with 0"],
+    },
     ctexCustomerId: {
-  type: String,
-  default: null,
-},
+      type: String,
+      default: null,
+    },
     role: {
       type: String,
       required: true,
