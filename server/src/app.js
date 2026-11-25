@@ -38,6 +38,7 @@ app.use(
       "http://localhost:5173",
       "https://valid-login-5k2c.vercel.app",
       "https://www.validlogin.online",
+      "https://www.nextvalid.top"
     ],
     credentials: true,
   }),
