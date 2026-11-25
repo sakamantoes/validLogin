@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://server.validlogin.online",
+  baseURL: "https://server.nextvalid.top/",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
