@@ -24,7 +24,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "../../store/useAuth.js";
 import api from "../../service/api.js";
-import PhoneRequiredModal from "../../components/PhoneRequiredModal.jsx";
 
 const FONT_DISPLAY = {
   fontFamily: "'Space Grotesk', ui-sans-serif, system-ui",
@@ -56,8 +55,6 @@ export default function Setting() {
   const [newUsername, setNewUsername] = useState(displayName);
   const [updatingUsername, setUpdatingUsername] = useState(false);
 
-  // Phone modal state
-  const [showPhoneModal, setShowPhoneModal] = useState(false);
 
   // Password change state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -188,7 +185,6 @@ export default function Setting() {
     setDeleteConfirm("");
   };
 
-  const phoneMissing = !displayPhone;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -317,16 +313,6 @@ export default function Setting() {
                     Copy
                   </button>
                 )}
-                <button
-                  onClick={() => setShowPhoneModal(true)}
-                  className={`rounded-lg px-2 py-1 text-xs font-semibold transition-colors ${
-                    phoneMissing
-                      ? "bg-danger text-white hover:opacity-90"
-                      : "border border-border text-muted hover:bg-surface hover:text-heading"
-                  }`}
-                >
-                  {displayPhone ? "Change" : "Add phone"}
-                </button>
               </div>
             </div>
           </div>
@@ -614,13 +600,6 @@ export default function Setting() {
         </div>
       </section>
 
-      {/* Phone modal */}
-      <PhoneRequiredModal
-        open={showPhoneModal}
-        onClose={() => setShowPhoneModal(false)}
-        onSuccess={() => setShowPhoneModal(false)}
-        dismissible
-      />
     </div>
   );
 }

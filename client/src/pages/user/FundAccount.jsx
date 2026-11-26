@@ -4,7 +4,6 @@ import CtexPayment from "../../components/payment/CtexPayment.jsx";
 import CtexPaymentStatus from "../../components/payment/CtexPaymentStatus.jsx";
 import ManualTransferPayment from "../../components/payment/ManualTransferPayment.jsx";
 import SquadPayment from "../../components/payment/SquadPayment.jsx";
-import PhoneGuard from "../../components/PhoneGuard.jsx";
 import { readPendingCtex } from "../../components/payment/ctexStorage.js";
 
 export default function FundAccount() {
@@ -85,5 +84,5 @@ export default function FundAccount() {
     );
   };
 
-  return <PhoneGuard>{renderContent()}</PhoneGuard>;
+  return renderContent();
 }

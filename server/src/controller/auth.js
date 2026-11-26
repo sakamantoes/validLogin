@@ -63,8 +63,6 @@ const googleSetup = async (req, res, next) => {
         email,
         username: name,
         password: hashedpassword,
-        // phone is intentionally absent here — the user will be prompted
-        // to add one via the PhoneRequiredModal before their first C-TEX deposit
       });
     }
 
@@ -112,7 +110,6 @@ const googleVerified = async (req, res, next) => {
         email,
         username: name,
         password: hashedPassword,
-        // phone intentionally absent — user is prompted before C-TEX deposit
       });
     }
 
@@ -176,28 +173,15 @@ const getAuthUser = async (req, res, next) => {
  * ======================================================= */
 
 const emailSignup = async (req, res, next) => {
-  const { email, password, username, phone } = req.body;
+  const { email, password, username } = req.body;
   try {
     if (!email || !password || !username) {
       res.statusCode = 400;
       throw new Error("Email, password and username are required");
     }
 
-    // Phone is mandatory at signup so C-TEX can be provisioned later
-    const normalizedPhone = normalizePhone(phone);
-    if (!isValidNigerianPhone(normalizedPhone)) {
-      res.statusCode = 400;
-      throw new Error(
-        "A valid Nigerian phone number is required (11 digits, e.g. 08012345678)",
-      );
-    }
-
     const isUser = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { username },
-        { phone: normalizedPhone },
-      ],
+      $or: [{ email: email.toLowerCase() }, { username }],
     });
 
     if (isUser) {
@@ -208,12 +192,10 @@ const emailSignup = async (req, res, next) => {
 
     const hashedPassword = await hashPassword(password);
 
-    // Create user with the phone number the user provided
     const user = await User.create({
       email: email.toLowerCase(),
       username,
       password: hashedPassword,
-      phone: normalizedPhone,
     });
 
     const jwtToken = generateToken({
@@ -233,7 +215,7 @@ const emailSignup = async (req, res, next) => {
         id: user._id,
         email: user.email,
         username: user.username,
-        phone: user.phone,
+        phone: user.phone || null,
         role: user.role,
       },
     });

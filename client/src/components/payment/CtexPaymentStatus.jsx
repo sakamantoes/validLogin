@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCtexPaymentStatus } from "../../service/payment.js";
 import CtexPaymentShell from "./CtexPaymentShell.jsx";
-import { clearPendingCtex } from "./ctexStorage.js";
+import { clearPendingCtex, readPendingCtex } from "./ctexStorage.js";
 
 const POLL_INTERVAL_MS = 4000;
 const MAX_ATTEMPTS = 40; // ~2.5 minutes, then we tell the user it's still processing
@@ -35,6 +35,7 @@ export default function CtexPaymentStatus({ reference, amount, onBack }) {
   const navigate = useNavigate();
   const [phase, setPhase] = useState("checking"); // checking | success | failed | timeout
   const [runId, setRunId] = useState(0);
+  const pending = readPendingCtex();
 
   useEffect(() => {
     if (!reference) return undefined;
@@ -122,6 +123,16 @@ export default function CtexPaymentStatus({ reference, amount, onBack }) {
       onBack={phase === "checking" ? undefined : onBack}
     >
       <div className="space-y-5 text-center" role="status" aria-live="polite">
+        {pending?.reference === reference && pending.paymentInstructions && (
+          <div className="space-y-2 rounded-xl border border-border bg-bg p-4 text-left text-sm">
+            <p className="font-semibold text-heading">Transfer instructions</p>
+            <p className="text-muted">Bank: {pending.paymentInstructions.bankName}</p>
+            <p className="text-muted">Account name: {pending.paymentInstructions.accountName}</p>
+            <p className="text-lg font-bold tracking-wide text-heading">Account number: {pending.paymentInstructions.accountNumber}</p>
+            <p className="text-muted">Amount: {formatNaira(amount || pending.amount)}</p>
+            {pending.paymentInstructions.expiresAt && <p className="text-xs text-muted">Expires: {new Date(pending.paymentInstructions.expiresAt).toLocaleString()}</p>}
+          </div>
+        )}
         {phase === "checking" && (
           <>
             <Loader2 size={44} className="mx-auto animate-spin text-brand-text" />

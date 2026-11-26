@@ -1,5 +1,6 @@
 import { AlertCircle, ArrowRight, Loader2, Lock } from "lucide-react";
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { initializeCtexPayment } from "../../service/payment.js";
 import CtexPaymentShell from "./CtexPaymentShell.jsx";
 import { savePendingCtex } from "./ctexStorage.js";
@@ -61,6 +62,7 @@ const formatNaira = (value) =>
   }).format(Number(value) || 0);
 
 export default function CtexPayment({ amount, onBack }) {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const submittingRef = useRef(false);
@@ -86,19 +88,21 @@ export default function CtexPayment({ amount, onBack }) {
       const checkoutUrl =
         typeof payload.checkoutUrl === "string" ? payload.checkoutUrl.trim() : "";
 
-      if (!checkoutUrl || !isSafeRedirect(checkoutUrl)) {
-        throw new Error("We couldn't start your checkout. Please try again.");
-      }
-
-      // The user leaves the app for ctex; this lets us verify when they come back.
       if (payload.referenceId) {
         savePendingCtex({
           reference: payload.referenceId,
           amount: payload.amount ?? numericAmount,
+          paymentInstructions: payload.paymentInstructions,
         });
       }
 
-      window.location.assign(checkoutUrl);
+      if (checkoutUrl && isSafeRedirect(checkoutUrl)) {
+        window.location.assign(checkoutUrl);
+      } else if (payload.paymentInstructions?.accountNumber && payload.referenceId) {
+        navigate(`/f/fund-account?paymentMethod=ctex&returned=1&reference=${encodeURIComponent(payload.referenceId)}`);
+      } else {
+        throw new Error("C-TEX did not return transfer instructions. Please try again.");
+      }
     } catch (err) {
       setError(getErrorMessage(err));
       submittingRef.current = false;
@@ -109,7 +113,7 @@ export default function CtexPayment({ amount, onBack }) {
   return (
     <CtexPaymentShell
       title="Pay with ctex PAY"
-      subtitle="You'll be taken to a secure checkout to complete this payment."
+      subtitle="Pay by bank transfer. Your wallet is credited after confirmation."
       onBack={isLoading ? undefined : onBack}
     >
       <div className="space-y-5">
@@ -154,7 +158,7 @@ export default function CtexPayment({ amount, onBack }) {
           {isLoading ? (
             <>
               <Loader2 size={17} className="animate-spin" />
-              Redirecting to checkout…
+              Preparing transfer…
             </>
           ) : (
             <>

@@ -9,7 +9,6 @@ import {
   sendDepositFailedNotification,
   sendPaymentReceivedNotification,
 } from "./notificationController.js";
-import { ensureCtexCustomer } from "./ctexCustomerController.js";
 import CtexWebhookEvent from "../model/CtexWebhookEvent.js";
 
 /* =========================================================
@@ -148,6 +147,7 @@ const getPaymentStatus = async (req, res, next) => {
         { "metadata.merchantReference": referenceId },
         { "metadata.ctexReference": referenceId },
       ],
+      userId: req.user._id,
     });
 
     if (!transaction) {
@@ -155,12 +155,87 @@ const getPaymentStatus = async (req, res, next) => {
       throw new Error("Transaction not found");
     }
 
+    let status = transaction.status;
+    if (transaction.paymentMethod === "CTEX" && status !== "SUCCESS") {
+      const verifyResponse = await axios.post(
+        `${CTEX_API()}/payments/${encodeURIComponent(transaction.referenceId)}/verify`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${String(env.ctex_api_key || "").trim()}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 15000,
+        },
+      );
+      const verified = verifyResponse.data?.data;
+      if (verified?.paymentReference !== transaction.referenceId) {
+        res.statusCode = 502;
+        throw new Error("C-TEX returned an unexpected payment reference");
+      }
+      status = normalizeCtexStatus(verified.status);
+      if (status === "SUCCESS") {
+        const verifiedAmountKobo = Number(verified.amount);
+        if (
+          String(verified.currency || "").toUpperCase() !== "NGN" ||
+          !Number.isFinite(verifiedAmountKobo) ||
+          verifiedAmountKobo !== Math.round(transaction.amount * 100) ||
+          (verified.merchantReference &&
+            verified.merchantReference !== transaction.metadata?.merchantReference)
+        ) {
+          res.statusCode = 502;
+          throw new Error("Verified C-TEX payment details do not match this deposit");
+        }
+
+        const session = await mongoose.startSession();
+        let notify = null;
+        try {
+          await session.withTransaction(async () => {
+            const current = await WalletTransaction.findOne({
+              referenceId: transaction.referenceId,
+              userId: req.user._id,
+            }).session(session);
+            if (!current) throw new Error("Transaction not found");
+            if (current.status === "SUCCESS") return;
+
+            const wallet = await User.findOneAndUpdate(
+              { _id: current.userId },
+              { $inc: { walletBalance: current.amount } },
+              { new: true, session },
+            );
+            if (!wallet) throw new Error("Wallet owner not found");
+
+            current.status = "SUCCESS";
+            current.orderId = verified.providerReference || verified.providerTransactionId;
+            current.balanceAfter = wallet.walletBalance;
+            current.balanceBefore = wallet.walletBalance - current.amount;
+            await current.save({ session });
+            notify = { userId: current.userId, amount: current.amount, balance: wallet.walletBalance };
+          });
+        } finally {
+          await session.endSession();
+        }
+
+        if (notify) {
+          await sendDepositSuccessNotification(
+            notify.userId,
+            notify.amount,
+            transaction.referenceId,
+            notify.balance,
+          ).catch((notificationError) => {
+            console.error("ctex verify: notification failed", notificationError.message);
+          });
+        }
+        status = "SUCCESS";
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: "Payment status fetched",
       data: {
         referenceId: transaction.referenceId,
-        status: transaction.status,
+        status,
       },
     });
   } catch (error) {
@@ -508,14 +583,9 @@ const questWebhook = async (req, res, next) => {
 };
 
 /* =========================================================
- * ctex PAY — checkout URL flow
+ * ctex PAY — account transfer flow
  * =======================================================
- *   paymentMethod: "ACCOUNT_TRANSFER"  → bank-transfer-only flow
- *   paymentMethod: OMITTED             → hosted checkout flow
- *
- * We use hosted checkout so the user is redirected to a ctex page
- * that handles transfer/card/USSD, then returns to our callback URL.
- * The webhook payload is identical either way.
+ *   paymentMethod: "ACCOUNT_TRANSFER"  → bank transfer instructions
  *
  * NOTE: the return / redirect URL is configured in the C-TEX
  * dashboard. It must NOT be sent in the create-payment payload —
@@ -547,18 +617,13 @@ const initializeCtexPayment = async (req, res, next) => {
       .toString("hex")
       .toUpperCase()}`;
 
-    // Lazily create (or reuse) the C-TEX customer and get their UUID.
-    const customerId = await ensureCtexCustomer(user);
-
+    const merchantReference = `validlogin-${user._id}-${crypto.randomBytes(8).toString("hex")}`;
     const payload = {
       amount: amountKobo,
       currency: "NGN",
-      customerId,
-      reference: idempotencyKey,
+      reference: merchantReference,
       description: `Wallet topup for ${user.email}`,
-      // paymentMethod deliberately not set — hosted checkout
-      // If hosted checkout fails, try adding: paymentMethod: "ACCOUNT_TRANSFER"
-      // redirectUrl / callbackUrl are configured in the C-TEX dashboard.
+      paymentMethod: "ACCOUNT_TRANSFER",
     };
 
     const response = await axios.post(`${CTEX_API()}/payments`, payload, {
@@ -577,15 +642,7 @@ const initializeCtexPayment = async (req, res, next) => {
     }
 
     const payment = body.data;
-    const checkoutUrl =
-      payment.checkoutUrl || payment.providerMetadata?.checkoutUrl;
-
-    if (!checkoutUrl) {
-      res.statusCode = 502;
-      throw new Error(
-        "ctex PAY did not return a checkout URL. Try again shortly.",
-      );
-    }
+    const checkoutUrl = payment.checkoutUrl || payment.providerMetadata?.checkoutUrl || null;
 
     await WalletTransaction.create({
       userId: user._id,
@@ -597,23 +654,24 @@ const initializeCtexPayment = async (req, res, next) => {
       status: "PENDING",
       metadata: {
         ctexReference: payment.paymentReference,
-        merchantReference: payment.merchantReference || idempotencyKey,
+        merchantReference: payment.merchantReference || merchantReference,
         amountKobo: Number(payment.amount),
         checkoutUrl,
+        paymentInstructions: payment.paymentInstructions || null,
       },
     });
 
     res.status(201).json({
       status: 201,
       success: true,
-      message:
-        "Deposit initialized, redirect to the provided URL to complete payment",
+      message: "Deposit initialized. Use the transfer instructions to pay.",
       data: {
         referenceId: payment.paymentReference,
         amount: Number(payment.amount) / 100,
         currency: payment.currency,
         status: payment.status,
         checkoutUrl,
+        paymentInstructions: payment.paymentInstructions || null,
       },
     });
   } catch (error) {
@@ -718,13 +776,21 @@ const ctexWebhook = async (req, res) => {
   } catch (err) {
     if (err?.code === 11000) {
       console.log("ctex webhook: duplicate event", { eventId });
-      return res.sendStatus(200);
+      const completed = await WalletTransaction.exists({
+        referenceId: paymentReference,
+        status: "SUCCESS",
+      });
+      if (completed) return res.sendStatus(200);
+      // The prior delivery may have stopped after recording the event.
+      // Reopen it so a provider retry can safely complete settlement.
+      await CtexWebhookEvent.deleteOne({ eventId });
+    } else {
+      console.error("ctex webhook: failed to persist event", {
+        eventId,
+        message: err?.message,
+      });
+      return res.sendStatus(500);
     }
-    console.error("ctex webhook: failed to persist event", {
-      eventId,
-      message: err?.message,
-    });
-    return res.sendStatus(500);
   }
 
   // Release the idempotency lock so ctex's retry can re-enter.
@@ -734,8 +800,9 @@ const ctexWebhook = async (req, res) => {
   // 5. verify with ctex API
   let verified;
   try {
-    const r = await axios.get(
-      `${CTEX_API()}/payments/${encodeURIComponent(paymentReference)}`,
+    const r = await axios.post(
+      `${CTEX_API()}/payments/${encodeURIComponent(paymentReference)}/verify`,
+      {},
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,

@@ -93,7 +93,7 @@ router.post(
   callbackUrlHandler
 );
 
-router.post("/status", paymentStatusValidator, validateData, getPaymentStatus);
+router.post("/status", authMiddleware, validateUserRole, paymentStatusValidator, validateData, getPaymentStatus);
 
 /* =========================================================
  * WEBHOOKS (public, provider-signed)

@@ -1,11 +1,11 @@
 const KEY = "ctex:pending-deposit";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-export const savePendingCtex = ({ reference, amount }) => {
+export const savePendingCtex = ({ reference, amount, paymentInstructions }) => {
   try {
     sessionStorage.setItem(
       KEY,
-      JSON.stringify({ reference, amount, at: Date.now() }),
+      JSON.stringify({ reference, amount, paymentInstructions, at: Date.now() }),
     );
   } catch {
     // storage unavailable (private mode) — ignore
