@@ -69,6 +69,18 @@ export const ensureCtexCustomer = async (user) => {
     throw err;
   }
 
+  const accountEmail = String(user.email || "").trim().toLowerCase();
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail) ||
+    accountEmail.endsWith("@example.com")
+  ) {
+    const err = new Error(
+      "Add a valid email address to your account before making a CTEX payment.",
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
   // 1. Already provisioned → reuse.
   if (user.ctexCustomerId) {
     return user.ctexCustomerId;
@@ -79,17 +91,22 @@ export const ensureCtexCustomer = async (user) => {
     user.username || user.fullName,
     "Customer",
   );
-  const email = String(user.email || "").toLowerCase();
+  const email = String(user.email || "").trim().toLowerCase();
 
-  if (!email) {
-    const err = new Error("User email is required to create a C-TEX customer");
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+    email.endsWith("@example.com")
+  ) {
+    const err = new Error(
+      "Add a valid email address to your account before making a CTEX payment.",
+    );
     err.statusCode = 400;
     throw err;
   }
 
   const payload = {
-    firstName,
-    lastName,
+    firstName: firstName.length >= 2 ? firstName : "Customer",
+    lastName: lastName.length >= 2 ? lastName : "Account",
     email,
     metadata: {
       externalCustomerId: String(user._id),

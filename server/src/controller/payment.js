@@ -9,6 +9,7 @@ import {
   sendDepositFailedNotification,
   sendPaymentReceivedNotification,
 } from "./notificationController.js";
+import { ensureCtexCustomer } from "./ctexCustomerController.js";
 import CtexWebhookEvent from "../model/CtexWebhookEvent.js";
 
 /* =========================================================
@@ -618,9 +619,14 @@ const initializeCtexPayment = async (req, res, next) => {
       .toUpperCase()}`;
 
     const merchantReference = `validlogin-${user._id}-${crypto.randomBytes(8).toString("hex")}`;
+    // CTEX accepts customerId as optional, but its transfer-account provider
+    // needs a valid customer email. Provision/reuse the CTEX customer first;
+    // their documented merchant-owner phone fallback still applies.
+    const customerId = await ensureCtexCustomer(user);
     const payload = {
       amount: amountKobo,
       currency: "NGN",
+      customerId,
       reference: merchantReference,
       description: `Wallet topup for ${user.email}`,
       paymentMethod: "ACCOUNT_TRANSFER",
