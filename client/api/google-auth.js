@@ -14,9 +14,8 @@ export default async function handler(req, res) {
   if (!token) {
     return res.status(400).json({ success: false, message: "Missing Google token" });
   }
-
+    console.log(process.env.GOOGLE_CLIENT_ID, 'test')
   try {
-    console.log(process.env.GOOGLE_CLIENT_ID)
     // Verify the Google ID token
     const ticket = await client.verifyIdToken({
       idToken: token,
