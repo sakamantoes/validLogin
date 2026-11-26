@@ -5,14 +5,17 @@ import { toast } from "react-toastify";
 import { useState } from "react";
 import { Loader } from "lucide-react";
 
+const apiConsole =  import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
 export default function GoogleButton() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  
 
   const successfull = async (credentialResponse) => {
     setIsLoading(true);
     localStorage.removeItem("smswinner_token");
-     console.log(import.meta.env.VITE_GOOGLE_CLIENT_ID, ' button api client id ');
+    console.log(apiConsole)
     try {
       const token = credentialResponse.credential;
 
