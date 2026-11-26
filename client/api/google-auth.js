@@ -2,15 +2,12 @@
 import "dotenv/config";
 import { OAuth2Client } from "google-auth-library";
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== "POST") {
     return res.status(405).json({ success: false, message: "Method not allowed" });
   }
-
-  console.log(import.meta.env.VITE_GOOGLE_CLIENT_ID, ' api client id ');
 
   const { token } = req.body;
 
