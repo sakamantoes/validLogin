@@ -16,6 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log(process.env.GOOGLE_CLIENT_ID)
     // Verify the Google ID token
     const ticket = await client.verifyIdToken({
       idToken: token,
