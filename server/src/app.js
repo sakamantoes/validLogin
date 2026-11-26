@@ -46,7 +46,7 @@ app.use(
 app.use(cookieParser());
 
 app.get("/", (req, res) => {
-  res.send("Welcome to validlogin API");
+  res.send("Welcome to nextvalid API");
 });
 
 // routes

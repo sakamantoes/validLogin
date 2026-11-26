@@ -176,10 +176,10 @@ function Marquee({ children, reverse = false, speed = 40 }) {
 
 function Logo() {
   return (
-    <Link to="/" className="flex shrink-0 items-center" aria-label="ValidLogin home">
+    <Link to="/" className="flex shrink-0 items-center" aria-label="Next Valid home">
       <img
         src={imageObject.Logo}
-        alt="ValidLogin"
+        alt="nextvalid"
         className="h-11 w-11 rounded-full object-cover sm:h-12 sm:w-14 md:h-16 md:w-16"
       />
     </Link>
@@ -781,7 +781,7 @@ function Footer() {
         ))}
       </div>
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 border-t px-5 py-5 text-[12.5px] sm:flex-row" style={{ color: D_TEXT_DIM, borderColor: D_BORDER }}>
-        <span>© {new Date().getFullYear()} VALIDLOGIN. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} NEXTVALID. All rights reserved.</span>
         <span className="flex gap-5"><Link to="/privacy" className="hover:text-brand-text">Privacy</Link><Link to="/terms" className="hover:text-brand-text">Terms</Link></span>
       </div>
     </footer>

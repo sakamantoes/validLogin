@@ -237,7 +237,7 @@ const Register = () => {
             Create your account
           </h1>
           <p className="mt-2 text-[14px] text-muted">
-            Join Valid Login and get verified in seconds.
+            Join Next Valid and get verified in seconds.
           </p>
         </div>
 

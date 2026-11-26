@@ -21,9 +21,9 @@ const FONT_DISPLAY = {
 };
 const FONT_MONO = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" };
 
-const BRAND = "Valid Login";
-const CONTACT_EMAIL = "privacy@validlogin.com";
-const CONTACT_SITE = "www.validlogin.com";
+const BRAND = "Next Valid";
+const CONTACT_EMAIL = "privacy@nextvalid.com";
+const CONTACT_SITE = "www.nextvalid.com";
 const LAST_UPDATED = "September 1, 2026";
 
 /* ------------------------------------------------------------------ */

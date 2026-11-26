@@ -77,7 +77,7 @@ const FloatingChat = () => {
   // Local number: 09134564469 -> International format: 2349134564469
   const whatsappNumber = "2349134564469";
   const whatsappMessage = encodeURIComponent(
-    "Hello! I need help with Valid Login Support."
+    "Hello! I need help with Next Valid Support."
   );
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
@@ -348,7 +348,7 @@ const FloatingChat = () => {
               {/* Content */}
               <div className="p-6">
                 <p className="text-gray-300 text-center leading-relaxed mb-4">
-                  👋 Welcome to Valid Login Support!
+                  👋 Welcome to Next Valid Support!
                   <br />
                   How would you like to connect with us? Click a button below 👇
                 </p>

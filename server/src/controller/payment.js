@@ -438,7 +438,7 @@ const initializeQuestPayment = async (req, res, next) => {
   const { amount } = req.body;
   const user = req.user;
   const randomCode = crypto.randomBytes(6).toString("hex").toUpperCase();
-  const reference = `validlogin-${user._id}-${randomCode}`;
+  const reference = `Next_Valid-${user._id}-${randomCode}`;
   try {
     const data = {
       email: user.email,
@@ -618,7 +618,7 @@ const initializeCtexPayment = async (req, res, next) => {
       .toString("hex")
       .toUpperCase()}`;
 
-    const merchantReference = `validlogin-${user._id}-${crypto.randomBytes(8).toString("hex")}`;
+    const merchantReference = `Next_Valid-${user._id}-${crypto.randomBytes(8).toString("hex")}`;
     // CTEX accepts customerId as optional, but its transfer-account provider
     // needs a valid customer email. Provision/reuse the CTEX customer first;
     // their documented merchant-owner phone fallback still applies.
