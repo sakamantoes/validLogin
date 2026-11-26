@@ -12,6 +12,7 @@ export default function GoogleButton() {
   const successfull = async (credentialResponse) => {
     setIsLoading(true);
     localStorage.removeItem("smswinner_token");
+     console.log(import.meta.env.VITE_GOOGLE_CLIENT_ID, ' button api client id ');
     try {
       const token = credentialResponse.credential;
 
